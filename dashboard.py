@@ -1475,28 +1475,28 @@ def main():
     # ============================================
     st.markdown("### ⚡ Snelle Acties")
     
+    # Initialize quick action in session state
+    if 'quick_action' not in st.session_state:
+        st.session_state.quick_action = None
+    
     # Create quick action buttons
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("🍽️ Voeding Toevoegen", use_container_width=True, type="primary"):
+        if st.button("🍽️ Voeding Toevoegen", use_container_width=True, type="primary", key="qa_voeding"):
             st.session_state.quick_action = "voeding"
-            st.rerun()
     
     with col2:
-        if st.button("💪 Training Loggen", use_container_width=True, type="primary"):
-            st.session_state.quick_action = "training"
-            st.rerun()
+        if st.button("💪 Training Loggen", use_container_width=True, type="primary", key="qa_training"):
+            st.session_state.quick_action = "kracht"
     
     with col3:
-        if st.button("⚖️ Gewicht Registreren", use_container_width=True, type="primary"):
+        if st.button("⚖️ Gewicht Registreren", use_container_width=True, type="primary", key="qa_gewicht"):
             st.session_state.quick_action = "gewicht"
-            st.rerun()
     
     with col4:
-        if st.button("📏 Metingen Invoeren", use_container_width=True, type="primary"):
+        if st.button("📏 Metingen Invoeren", use_container_width=True, type="primary", key="qa_metingen"):
             st.session_state.quick_action = "metingen"
-            st.rerun()
     
     st.markdown("---")
     
@@ -1799,10 +1799,16 @@ def main():
             for goal in recommendations['goals']:
                 st.markdown(f"• {goal}")
     
-    # Handle quick actions - automatically open Data Invoer tab
-    if 'quick_action' in st.session_state and st.session_state.quick_action:
-        # Force open Data Invoer tab
-        st.info(f"💡 **Snelle Actie Actief**: Scroll naar beneden naar de **📝 Data Invoer** tab om {st.session_state.quick_action} toe te voegen!")
+    # Handle quick actions - show helpful message
+    if st.session_state.get('quick_action'):
+        action_map = {
+            'voeding': '🍽️ Voeding',
+            'kracht': '💪 Kracht',
+            'gewicht': '⚖️ Gewicht',
+            'metingen': '📏 Metingen'
+        }
+        action_name = action_map.get(st.session_state.quick_action, st.session_state.quick_action)
+        st.info(f"💡 **Snelle Actie**: Scroll naar beneden naar **📝 Data Invoer** tab → selecteer **{action_name}**")
     
     # Tabs
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -3921,48 +3927,58 @@ def main():
         
         # Setup status checker
         import os
-        groq_configured = bool(os.getenv('GROQ_API_KEY'))
-        sheets_configured = os.path.exists(os.getenv('GOOGLE_CREDENTIALS_PATH', 'credentials.json'))
+        groq_configured = bool(os.getenv('GROQ_API_KEY') or st.secrets.get('GROQ_API_KEY'))
+        # Check if credentials exist locally OR in secrets
+        sheets_configured = (
+            os.path.exists(os.getenv('GOOGLE_CREDENTIALS_PATH', 'credentials.json')) or 
+            'gcp_service_account' in st.secrets
+        )
         
         # Status indicator
         if not groq_configured or not sheets_configured:
             st.warning("⚠️ Setup is nog niet compleet!")
             with st.expander("📋 Wat ontbreekt er?", expanded=True):
                 if not groq_configured:
-                    st.error("❌ **Groq API Key** niet ingesteld in `.env` bestand")
+                    st.error("❌ **Groq API Key** niet ingesteld in `.env` of Streamlit Secrets")
                     st.markdown("""
                     **Wat moet je doen?**
                     1. Ga naar: https://console.groq.com
                     2. Maak een (gratis) account aan
                     3. Klik "API Keys" → "Create API Key"
                     4. Kopieer de key (begint met `gsk_...`)
-                    5. Open `.env` bestand en plak: `GROQ_API_KEY=gsk_jouw_key_hier`
+                    5. **Lokaal**: Open `.env` bestand en plak: `GROQ_API_KEY=gsk_jouw_key_hier`
+                    6. **Cloud**: Voeg toe aan Streamlit Secrets
                     
-                    📄 Zie **TODO_SETUP.txt** voor gedetailleerde instructies!
+                    📄 Zie **DEPLOYMENT.md** voor meer info!
                     """)
                 else:
                     st.success("✅ Groq API Key is ingesteld")
                 
                 if not sheets_configured:
-                    st.error("❌ **Google Sheets Credentials** niet gevonden (`credentials.json`)")
+                    st.error("❌ **Google Sheets Credentials** niet gevonden")
                     st.markdown("""
                     **Wat moet je doen?**
                     1. Ga naar: https://console.cloud.google.com
                     2. Maak een Service Account aan
                     3. Download de JSON credentials
-                    4. Hernoem naar `credentials.json`
-                    5. Plaats in: `C:\\Users\\alex.wiepking\\Projects\\sport\\`
+                    4. **Lokaal**: Hernoem naar `credentials.json` en plaats in project folder
+                    5. **Cloud**: Voeg toe aan Streamlit Secrets onder `[gcp_service_account]`
                     6. Deel je Google Sheet met het service account email!
                     
-                    📄 Zie **TODO_SETUP.txt** voor gedetailleerde instructies!
+                    📄 Zie **DEPLOYMENT.md** voor meer info!
                     """)
                 else:
                     st.success("✅ Google Sheets Credentials gevonden")
                     # Show service account email if available
                     try:
                         import json
-                        with open('credentials.json', 'r') as f:
-                            creds = json.load(f)
+                        # Try local file first
+                        if os.path.exists('credentials.json'):
+                            with open('credentials.json', 'r') as f:
+                                creds = json.load(f)
+                        # Fallback to secrets
+                        elif 'gcp_service_account' in st.secrets:
+                            creds = dict(st.secrets['gcp_service_account'])
                             if 'client_email' in creds:
                                 st.info(f"📧 Service account: `{creds['client_email']}`\n\n"
                                        f"⚠️ Heb je dit email toegevoegd aan je Google Sheet met Editor rechten?")
