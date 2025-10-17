@@ -126,6 +126,13 @@ st.markdown("""
         font-weight: 500 !important;
     }
     
+    /* Hide Quick Actions tip on desktop (show only on mobile) */
+    @media (min-width: 769px) {
+        .quick-action-tip {
+            display: none !important;
+        }
+    }
+    
     /* Compact table styling */
     .dataframe {
         font-size: 0.85rem !important;
@@ -1494,8 +1501,10 @@ def main():
     if 'quick_action' not in st.session_state:
         st.session_state.quick_action = None
     
-    # Quick action info - simple text instructions
-    st.info("� **Tip**: Scroll naar beneden naar de **📝 Data Invoer** tab om snel iets toe te voegen!")
+    # Quick action info - simple text instructions (only show on mobile)
+    st.markdown('<div class="quick-action-tip">', unsafe_allow_html=True)
+    st.info("💡 **Tip**: Scroll naar beneden naar de **📝 Data Invoer** tab om snel iets toe te voegen!")
+    st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -1816,20 +1825,11 @@ def main():
                 try:
                     # Verzamel huidige dag data
                     today = datetime.now().date()
+                    today_str = today.strftime('%d-%m-%Y')
                     voeding_data = get_voeding_data()
                     
-                    if voeding_data is not None and not voeding_data.empty:
-                        # Filter op vandaag
-                        today_data = voeding_data[voeding_data['Datum'] == today.strftime('%d-%m-%Y')]
-                        
-                        current_nutrition = {
-                            'calories': int(today_data['Calorieën'].sum()) if not today_data.empty else 0,
-                            'protein': int(today_data['Eiwitten (g)'].sum()) if not today_data.empty else 0,
-                            'carbs': int(today_data['Koolhydraten (g)'].sum()) if not today_data.empty else 0,
-                            'fats': int(today_data['Vetten (g)'].sum()) if not today_data.empty else 0
-                        }
-                    else:
-                        current_nutrition = {'calories': 0, 'protein': 0, 'carbs': 0, 'fats': 0}
+                    # Get nutrition totals using the existing function
+                    current_nutrition = calculate_nutrition_totals(voeding_data, today_str)
                     
                     # Verzamel workout data
                     workouts_today = []

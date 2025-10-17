@@ -339,14 +339,20 @@ def generate_daily_coaching(current_data: Dict[str, Any], targets: Dict[str, Any
     try:
         client = get_groq_client()
         
-        # Build context voor de AI
+        # Build context voor de AI - gebruik lowercase keys die matchen met calculate_nutrition_totals
+        nutrition = current_data.get('nutrition', {})
+        calories = nutrition.get('calorien', 0)
+        protein = nutrition.get('eiwit', 0)
+        carbs = nutrition.get('koolhydraten', 0)
+        fats = nutrition.get('vetten', 0)
+        
         context = f"""Je bent een persoonlijke fitness coach die {name} helpt met hun dagelijkse voortgang.
 
 HUIDIGE STATUS (vandaag tot nu):
-- Calorieën: {current_data.get('nutrition', {}).get('calories', 0)}/{targets.get('calories', 2000)} kcal
-- Eiwitten: {current_data.get('nutrition', {}).get('protein', 0)}/{targets.get('protein', 160)}g
-- Koolhydraten: {current_data.get('nutrition', {}).get('carbs', 0)}/{targets.get('carbs', 180)}g
-- Vetten: {current_data.get('nutrition', {}).get('fats', 0)}/{targets.get('fats', 60)}g
+- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal
+- Eiwitten: {protein:.0f}/{targets.get('protein', 160)}g
+- Koolhydraten: {carbs:.0f}/{targets.get('carbs', 180)}g
+- Vetten: {fats:.0f}/{targets.get('fats', 60)}g
 - Stappen: {current_data.get('steps', 0)}/10000
 - Trainingen vandaag: {len(current_data.get('workouts', []))} sessies
 
