@@ -409,3 +409,118 @@ Schrijf in het Nederlands, spreek de gebruiker direct aan met "je".
         
     except Exception as e:
         return f"❌ Kon geen coaching rapport genereren: {str(e)}"
+
+def generate_quick_actions(current_data, targets, name):
+    """
+    Genereer korte, concrete actiepunten voor de sidebar
+    
+    Args:
+        current_data: Dict met huidige voortgang (nutrition, workouts, steps)
+        targets: Dict met doelen
+        name: Naam gebruiker
+        
+    Returns:
+        Dict met 'nutrition_actions' en 'goals' lists
+    """
+    try:
+        client = get_groq_client()
+        
+        # Extract data
+        nutrition = current_data.get('nutrition', {})
+        calories = nutrition.get('calorien', 0)
+        protein = nutrition.get('eiwit', 0)
+        
+        context = f"""Genereer korte actiepunten voor {name} voor morgen/de komende dag.
+
+HUIDIGE STATUS (vandaag):
+- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal
+- Eiwit: {protein:.0f}/{targets.get('protein', 160)}g
+- Trainingen: {len(current_data.get('workouts', []))}
+- Stappen: {current_data.get('steps', 0):,}
+
+Genereer:
+1. 3-4 concrete VOEDING actiepunten (specifieke hoeveelheden, voedsel suggesties)
+2. 3-4 DOEL actiepunten (training frequentie, targets, gewicht)
+
+Format:
+🍳 Voeding:
+• [actie 1]
+• [actie 2]
+• [actie 3]
+
+🎯 Doelen:
+• [doel 1]
+• [doel 2]
+• [doel 3]
+
+Wees kort, specifiek en gemotiveerd. Max 10 woorden per actie. Gebruik getallen."""
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "Je bent een fitness coach die korte, concrete actiepunten geeft."},
+                {"role": "user", "content": context}
+            ],
+            temperature=0.7,
+            max_tokens=300
+        )
+        
+        # Parse response
+        content = response.choices[0].message.content
+        
+        # Extract lists
+        nutrition_actions = []
+        goals = []
+        
+        current_section = None
+        for line in content.split('\n'):
+            line = line.strip()
+            if '🍳' in line or 'Voeding' in line:
+                current_section = 'nutrition'
+            elif '🎯' in line or 'Doelen' in line or 'Doel' in line:
+                current_section = 'goals'
+            elif line.startswith('•') or line.startswith('-'):
+                cleaned = line.lstrip('•-').strip()
+                if cleaned:
+                    if current_section == 'nutrition':
+                        nutrition_actions.append(cleaned)
+                    elif current_section == 'goals':
+                        goals.append(cleaned)
+        
+        # Fallback if parsing failed
+        if not nutrition_actions:
+            cal_left = targets.get('calories', 2000) - calories
+            prot_left = targets.get('protein', 160) - protein
+            nutrition_actions = [
+                f"Voeg {int(prot_left)}g eiwit toe (kwark/kip)" if prot_left > 0 else "Eiwit op target ✓",
+                f"Nog {int(cal_left)} kcal voor vandaag" if cal_left > 0 else "Calorieën goed op schema",
+                "Drink 2-3L water"
+            ]
+        
+        if not goals:
+            goals = [
+                f"{targets.get('calories')} kcal per dag",
+                f"{targets.get('protein')}g+ eiwit",
+                "4+ trainingen/week"
+            ]
+        
+        return {
+            'nutrition_actions': nutrition_actions[:4],  # Max 4
+            'goals': goals[:4]  # Max 4
+        }
+        
+    except Exception as e:
+        # Fallback to basic recommendations
+        return {
+            'nutrition_actions': [
+                "Eet eiwitrijk (180g+ per dag)",
+                "Drink 2-3L water",
+                "Eet binnen 30 min na training"
+            ],
+            'goals': [
+                f"{targets.get('calories', 2000)} kcal per dag",
+                f"{targets.get('protein', 160)}g+ eiwit",
+                "4+ trainingen/week"
+            ]
+        }
+

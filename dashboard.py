@@ -1842,7 +1842,10 @@ def main():
     
     if view_mode == "📅 Dag":
         today_str = start_date.strftime("%d/%m/%Y")
+        today_str_dash = start_date.strftime("%d-%m-%Y")
         totals = calculate_nutrition_totals(nutrition_df, today_str)
+        if sum(totals.values()) == 0:
+            totals = calculate_nutrition_totals(nutrition_df, today_str_dash)
     else:
         totals = {
             'calorien': period_stats['avg_calories'],
@@ -1851,23 +1854,22 @@ def main():
             'vetten': period_stats['total_fats'] / max(period_stats['days'], 1)
         }
     
-    # Generate recommendations and ADD TO SIDEBAR
-    recommendations = generate_action_recommendations(totals, period_stats, targets)
-    
-    # Add default actions if empty
-    if not recommendations['nutrition_actions']:
-        recommendations['nutrition_actions'] = [
-            "Blijf je eiwitinname hoog houden (minimaal 180g)",
-            "Drink minimaal 2-3 liter water",
-            "Eet binnen 30 min na training voor optimaal herstel"
-        ]
-    
-    if not recommendations['goals']:
-        recommendations['goals'] = [
-            "Plan je trainingen voor de komende week",
-            "Track alle maaltijden voor beter inzicht",
-            "4+ trainingen deze week voor optimaal resultaat"
-        ]
+    # Generate AI-powered recommendations for sidebar
+    if HELPERS_AVAILABLE:
+        # Build current data for AI
+        try:
+            quick_data = {
+                'nutrition': totals,
+                'workouts': [],  # Could add today's workouts here
+                'steps': 0  # Could add today's steps here
+            }
+            recommendations = groq_helper.generate_quick_actions(quick_data, targets, name)
+        except:
+            # Fallback to static if AI fails
+            recommendations = generate_action_recommendations(totals, period_stats, targets)
+    else:
+        # Use static recommendations if AI not available
+        recommendations = generate_action_recommendations(totals, period_stats, targets)
     
     # Add actions to sidebar NOW
     with st.sidebar:
@@ -1904,25 +1906,11 @@ def main():
                     today_str_slash = today.strftime('%d/%m/%Y')
                     voeding_data = get_voeding_data()
                     
-                    # Debug: Show what date we're looking for and what's in the data
-                    st.info(f"🔍 Zoek data voor: {today_str} of {today_str_slash}")
-                    
-                    # Debug: Show sample dates from voeding data
-                    if voeding_data is not None and not voeding_data.empty and 'datum' in voeding_data.columns:
-                        unique_dates = voeding_data['datum'].unique()[:5]  # First 5 dates
-                        st.caption(f"📅 Datums in sheet: {', '.join(map(str, unique_dates))}")
-                    
-                    # Try both date formats
+                    # Try both date formats (silently)
                     current_nutrition = calculate_nutrition_totals(voeding_data, today_str)
                     if sum(current_nutrition.values()) == 0:
                         # Try with slashes
                         current_nutrition = calculate_nutrition_totals(voeding_data, today_str_slash)
-                    
-                    # Debug: Show nutrition data found
-                    if sum(current_nutrition.values()) > 0:
-                        st.success(f"✅ Voedingsdata gevonden: {current_nutrition['calorien']:.0f} kcal")
-                    else:
-                        st.warning("⚠️ Geen voedingsdata gevonden voor vandaag. Voer eerst je maaltijden in!")
                     
                     # Verzamel ALLE activiteiten data (cardio + kracht)
                     workouts_today = []
@@ -1965,10 +1953,8 @@ def main():
                                             cardio_sessions = cardio_activities[activity_col].tolist()
                                         if not kracht_activities.empty:
                                             kracht_sessions = kracht_activities[activity_col].tolist()
-                                
-                                st.success(f"✅ Activiteiten gevonden: {len(workouts_today)} sessies")
                     except Exception as e:
-                        st.caption(f"⚠️ Activiteiten data: {str(e)}")
+                        pass  # Silently continue if activiteiten not available
                     
                     # Also check eGym/kracht sheet
                     try:
@@ -1988,10 +1974,8 @@ def main():
                                 if exercise_col:
                                     egym_workouts = today_kracht[exercise_col].tolist()
                                     kracht_sessions.extend(egym_workouts)
-                                    if egym_workouts:
-                                        st.success(f"✅ eGym kracht trainingen: {len(egym_workouts)}")
                     except Exception as e:
-                        st.caption(f"⚠️ eGym data: {str(e)}")
+                        pass  # Silently continue if egym not available
                     
                     # Verzamel stappen
                     steps_today = 0
@@ -2004,9 +1988,8 @@ def main():
                             if not today_steps.empty:
                                 steps_col = 'stappen' if 'stappen' in today_steps.columns else 'Stappen'
                                 steps_today = int(today_steps[steps_col].sum())
-                                st.success(f"✅ Stappen gevonden: {steps_today:,}")
                     except Exception as e:
-                        st.caption(f"⚠️ Stappen data: {str(e)}")
+                        pass  # Silently continue if stappen not available
                     
                     # Build comprehensive data dictionary
                     current_data = {
