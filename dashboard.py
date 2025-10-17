@@ -34,6 +34,110 @@ st.set_page_config(
 )
 
 # ============================================
+# MOBILE-FIRST CSS
+# ============================================
+st.markdown("""
+<style>
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+        /* Reduce padding */
+        .main .block-container {
+            padding-top: 2rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        
+        /* Smaller headers */
+        h1 { font-size: 1.5rem !important; }
+        h2 { font-size: 1.25rem !important; }
+        h3 { font-size: 1.1rem !important; }
+        
+        /* Compact metrics */
+        [data-testid="stMetricValue"] {
+            font-size: 1.5rem !important;
+        }
+        
+        /* Full-width buttons */
+        .stButton button {
+            width: 100% !important;
+            padding: 0.75rem !important;
+            font-size: 1rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Compact inputs */
+        .stTextInput input, .stTextArea textarea {
+            font-size: 1rem !important;
+        }
+        
+        /* Stack columns vertically on mobile */
+        [data-testid="column"] {
+            width: 100% !important;
+            flex: 100% !important;
+        }
+        
+        /* Smaller tabs */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.5rem !important;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.9rem !important;
+        }
+    }
+    
+    /* Touch-friendly buttons (all screens) */
+    .stButton button {
+        min-height: 44px !important;
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Quick action buttons */
+    .quick-action-btn {
+        display: inline-block;
+        padding: 1rem 1.5rem;
+        margin: 0.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        text-decoration: none !important;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+    }
+    
+    @media (max-width: 768px) {
+        .quick-action-btn {
+            display: block;
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+    }
+    
+    /* Compact table styling */
+    .dataframe {
+        font-size: 0.85rem !important;
+    }
+    
+    /* Better graph sizing on mobile */
+    @media (max-width: 768px) {
+        .js-plotly-plot {
+            height: 300px !important;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================
 # AUTHENTICATION
 # ============================================
 # Load config from secrets (Streamlit Cloud) or local file
@@ -1366,6 +1470,36 @@ def main():
     st.title("💪 Fitness Coach Dashboard")
     st.markdown(f"**{name} - Dashboard**")
     
+    # ============================================
+    # QUICK ACTIONS - Mobile Friendly
+    # ============================================
+    st.markdown("### ⚡ Snelle Acties")
+    
+    # Create quick action buttons
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("🍽️ Voeding Toevoegen", use_container_width=True, type="primary"):
+            st.session_state.quick_action = "voeding"
+            st.rerun()
+    
+    with col2:
+        if st.button("💪 Training Loggen", use_container_width=True, type="primary"):
+            st.session_state.quick_action = "training"
+            st.rerun()
+    
+    with col3:
+        if st.button("⚖️ Gewicht Registreren", use_container_width=True, type="primary"):
+            st.session_state.quick_action = "gewicht"
+            st.rerun()
+    
+    with col4:
+        if st.button("📏 Metingen Invoeren", use_container_width=True, type="primary"):
+            st.session_state.quick_action = "metingen"
+            st.rerun()
+    
+    st.markdown("---")
+    
     # Sidebar - Configuration
     with st.sidebar:
         st.header("⚙️ Configuratie")
@@ -1664,6 +1798,11 @@ def main():
             st.markdown("**🎯 Doelen**")
             for goal in recommendations['goals']:
                 st.markdown(f"• {goal}")
+    
+    # Handle quick actions - automatically open Data Invoer tab
+    if 'quick_action' in st.session_state and st.session_state.quick_action:
+        # Force open Data Invoer tab
+        st.info(f"💡 **Snelle Actie Actief**: Scroll naar beneden naar de **📝 Data Invoer** tab om {st.session_state.quick_action} toe te voegen!")
     
     # Tabs
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -3831,6 +3970,15 @@ def main():
                         pass
         
         st.markdown("---")
+        
+        # Check for quick action and show relevant hint
+        quick_action = st.session_state.get('quick_action', None)
+        if quick_action:
+            st.success(f"⚡ **Snelle Actie**: Selecteer de **{quick_action.title()}** tab hieronder!")
+            # Clear quick action after showing
+            if st.button("✅ Begrepen, verberg deze melding", key="clear_quick_action"):
+                st.session_state.quick_action = None
+                st.rerun()
         
         # Tabs voor verschillende input types
         input_tab1, input_tab2, input_tab3, input_tab4, input_tab5, input_tab6 = st.tabs([
