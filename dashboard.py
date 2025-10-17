@@ -96,13 +96,6 @@ if st.session_state.get("authentication_status") == False:
     st.stop()
 elif st.session_state.get("authentication_status") == None:
     st.warning('Please enter your username and password')
-    st.info("""
-    **Demo accounts:**
-    - Username: `alex` / Password: `sport2025`
-    - Username: `partner` / Password: `fitness2025`
-    
-    💡 Volg instructies in DEPLOYMENT.md om je eigen wachtwoorden in te stellen.
-    """)
     st.stop()
 
 # User is authenticated - show logout button in sidebar
