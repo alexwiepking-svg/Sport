@@ -789,7 +789,7 @@ def load_sheet_data(sheet_id):
         base_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet="
         
         data = {}
-        sheets = ['voeding', 'activiteiten', 'metingen', 'egym', 'stappen', 'gewicht']
+        sheets = ['voeding', 'activiteiten', 'metingen', 'egym', 'stappen', 'gewicht', 'doelen']
         
         for sheet_name in sheets:
             try:
@@ -797,7 +797,9 @@ def load_sheet_data(sheet_id):
                 df = pd.read_csv(url)
                 data[sheet_name] = df
             except Exception as e:
-                st.warning(f"Kon {sheet_name} niet laden: {str(e)}")
+                # Don't warn about missing doelen sheet - it's optional
+                if sheet_name != 'doelen':
+                    st.warning(f"Kon {sheet_name} niet laden: {str(e)}")
                 data[sheet_name] = pd.DataFrame()
         
         return data
@@ -844,6 +846,16 @@ def get_gewicht_data():
     data = load_sheet_data(sheet_id)
     if data and 'gewicht' in data:
         return data['gewicht']
+    return pd.DataFrame()
+
+def get_kracht_data():
+    """Haal kracht (egym) data op via load_sheet_data"""
+    import streamlit as st
+    import os
+    sheet_id = st.session_state.get('user_sheet_id', os.getenv('SHEET_ID_ALEX'))
+    data = load_sheet_data(sheet_id)
+    if data and 'egym' in data:
+        return data['egym']
     return pd.DataFrame()
 
 def get_chart_layout_defaults():
@@ -1505,14 +1517,32 @@ def main():
     # Initialize session state for targets (user-specific key)
     targets_key = f'targets_{name}'
     if targets_key not in st.session_state:
-        st.session_state[targets_key] = {
-            'calories': 2000,
-            'protein': 160,
-            'carbs': 180,
-            'fats': 60,
-            'weight': 106.2,
-            'target_weight': 85.0  # Add separate target weight field
-        }
+        # Try to load goals from Google Sheets first
+        try:
+            import sheets_helper
+            loaded_goals = sheets_helper.load_goals(username, user_sheet_id)
+            if loaded_goals:
+                st.session_state[targets_key] = loaded_goals
+            else:
+                # Use defaults if not found in sheet
+                st.session_state[targets_key] = {
+                    'calories': 2000,
+                    'protein': 160,
+                    'carbs': 180,
+                    'fats': 60,
+                    'weight': 106.2,
+                    'target_weight': 85.0
+                }
+        except Exception as e:
+            # Fallback to defaults if loading fails
+            st.session_state[targets_key] = {
+                'calories': 2000,
+                'protein': 160,
+                'carbs': 180,
+                'fats': 60,
+                'weight': 106.2,
+                'target_weight': 85.0
+            }
     
     # Also keep a reference in the old location for compatibility
     st.session_state.targets = st.session_state[targets_key]
@@ -1741,7 +1771,7 @@ def main():
             if st.button("💾 Doelen Opslaan", use_container_width=True):
                 # Save to user-specific targets
                 targets_key = f'targets_{name}'
-                st.session_state[targets_key] = {
+                new_goals = {
                     'calories': new_calories,
                     'protein': new_protein,
                     'carbs': new_carbs,
@@ -1749,8 +1779,17 @@ def main():
                     'weight': new_weight,
                     'target_weight': new_target_weight
                 }
-                st.session_state.targets = st.session_state[targets_key]
-                st.success(f"✅ Doelen opgeslagen voor {name}!")
+                st.session_state[targets_key] = new_goals
+                st.session_state.targets = new_goals
+                
+                # Save to Google Sheets for persistence
+                try:
+                    import sheets_helper
+                    sheets_helper.save_goals(username, new_goals, user_sheet_id)
+                    st.success(f"✅ Doelen opgeslagen voor {name} (persistent opgeslagen in Google Sheets)!")
+                except Exception as e:
+                    st.warning(f"⚠️ Doelen opgeslagen in sessie, maar niet naar Google Sheets: {str(e)}")
+                
                 st.rerun()
         
         # Display current targets

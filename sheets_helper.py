@@ -239,6 +239,108 @@ def write_to_metingen(data: Dict[str, Any], datum: Optional[str] = None, sheet_i
     except Exception as e:
         raise Exception(f"Fout bij schrijven naar metingen sheet: {str(e)}")
 
+def save_goals(username: str, goals: Dict[str, Any], sheet_id: Optional[str] = None) -> bool:
+    """
+    Sla gebruikersdoelen op in de 'doelen' sheet
+    
+    Expected goals format:
+    {
+        'calories': 2000,
+        'protein': 160,
+        'carbs': 180,
+        'fats': 60,
+        'weight': 106.2,
+        'target_weight': 85.0
+    }
+    """
+    try:
+        spreadsheet = get_spreadsheet(sheet_id)
+        
+        # Probeer doelen sheet te vinden, of maak hem aan
+        try:
+            sheet = spreadsheet.worksheet('doelen')
+        except:
+            # Sheet bestaat niet, maak hem aan
+            sheet = spreadsheet.add_worksheet(title='doelen', rows=100, cols=10)
+            # Voeg headers toe
+            headers = ['gebruiker', 'calories', 'protein', 'carbs', 'fats', 'weight', 'target_weight', 'last_updated']
+            sheet.append_row(headers)
+        
+        # Zoek of gebruiker al bestaat
+        try:
+            cell = sheet.find(username, in_column=1)
+            row_index = cell.row
+            # Update bestaande rij
+            row = [
+                username,
+                goals.get('calories', 2000),
+                goals.get('protein', 160),
+                goals.get('carbs', 180),
+                goals.get('fats', 60),
+                goals.get('weight', 106.2),
+                goals.get('target_weight', 85.0),
+                datetime.now().strftime('%d/%m/%Y %H:%M')
+            ]
+            sheet.delete_rows(row_index)
+            sheet.insert_row(row, row_index)
+        except:
+            # Gebruiker bestaat niet, voeg nieuwe rij toe
+            row = [
+                username,
+                goals.get('calories', 2000),
+                goals.get('protein', 160),
+                goals.get('carbs', 180),
+                goals.get('fats', 60),
+                goals.get('weight', 106.2),
+                goals.get('target_weight', 85.0),
+                datetime.now().strftime('%d/%m/%Y %H:%M')
+            ]
+            sheet.append_row(row, value_input_option='USER_ENTERED')
+        
+        return True
+        
+    except Exception as e:
+        raise Exception(f"Fout bij opslaan doelen: {str(e)}")
+
+def load_goals(username: str, sheet_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Laad gebruikersdoelen uit de 'doelen' sheet
+    
+    Returns:
+        Dict met goals of None als niet gevonden
+    """
+    try:
+        spreadsheet = get_spreadsheet(sheet_id)
+        
+        try:
+            sheet = spreadsheet.worksheet('doelen')
+        except:
+            # Sheet bestaat niet
+            return None
+        
+        # Zoek gebruiker
+        try:
+            cell = sheet.find(username, in_column=1)
+            row_data = sheet.row_values(cell.row)
+            
+            # Parse row data
+            goals = {
+                'calories': int(float(row_data[1])) if len(row_data) > 1 and row_data[1] else 2000,
+                'protein': int(float(row_data[2])) if len(row_data) > 2 and row_data[2] else 160,
+                'carbs': int(float(row_data[3])) if len(row_data) > 3 and row_data[3] else 180,
+                'fats': int(float(row_data[4])) if len(row_data) > 4 and row_data[4] else 60,
+                'weight': float(row_data[5]) if len(row_data) > 5 and row_data[5] else 106.2,
+                'target_weight': float(row_data[6]) if len(row_data) > 6 and row_data[6] else 85.0
+            }
+            return goals
+        except:
+            # Gebruiker niet gevonden
+            return None
+        
+    except Exception as e:
+        # Fout bij laden, return None
+        return None
+
 def test_connection() -> Dict[str, Any]:
     """Test de Google Sheets connectie"""
     try:
