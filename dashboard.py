@@ -42,48 +42,80 @@ st.markdown("""
     @media (max-width: 768px) {
         /* Reduce padding */
         .main .block-container {
-            padding-top: 2rem !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
         }
         
         /* Smaller headers */
-        h1 { font-size: 1.5rem !important; }
-        h2 { font-size: 1.25rem !important; }
-        h3 { font-size: 1.1rem !important; }
+        h1 { font-size: 1.3rem !important; margin-bottom: 0.5rem !important; }
+        h2 { font-size: 1.15rem !important; margin-bottom: 0.5rem !important; }
+        h3 { font-size: 1rem !important; margin-bottom: 0.5rem !important; }
         
         /* Compact metrics */
         [data-testid="stMetricValue"] {
-            font-size: 1.5rem !important;
+            font-size: 1.3rem !important;
+        }
+        [data-testid="stMetricLabel"] {
+            font-size: 0.85rem !important;
         }
         
         /* Full-width buttons */
         .stButton button {
             width: 100% !important;
-            padding: 0.75rem !important;
-            font-size: 1rem !important;
+            padding: 0.6rem !important;
+            font-size: 0.95rem !important;
             margin-bottom: 0.5rem !important;
         }
         
         /* Compact inputs */
         .stTextInput input, .stTextArea textarea {
-            font-size: 1rem !important;
+            font-size: 0.95rem !important;
+            padding: 0.5rem !important;
         }
         
         /* Stack columns vertically on mobile */
         [data-testid="column"] {
             width: 100% !important;
             flex: 100% !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Add spacing between stacked columns */
+        [data-testid="column"] > div {
+            margin-bottom: 0.75rem !important;
         }
         
         /* Smaller tabs */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 0.5rem !important;
+            gap: 0.25rem !important;
+            overflow-x: auto !important;
         }
         
         .stTabs [data-baseweb="tab"] {
-            padding: 0.5rem 0.75rem !important;
-            font-size: 0.9rem !important;
+            padding: 0.4rem 0.6rem !important;
+            font-size: 0.85rem !important;
+            white-space: nowrap !important;
+        }
+        
+        /* Hide AI Coach on mobile - too much content */
+        .ai-coach-section {
+            display: none !important;
+        }
+        
+        /* Compact plotly graphs */
+        .js-plotly-plot {
+            height: 250px !important;
+            max-width: 100vw !important;
+        }
+        
+        .js-plotly-plot .plotly {
+            width: 100% !important;
+        }
+        
+        /* Hide horizontal scrollbars on graphs */
+        .user-select-none {
+            overflow-x: hidden !important;
         }
     }
     
@@ -94,45 +126,16 @@ st.markdown("""
         font-weight: 500 !important;
     }
     
-    /* Quick action buttons */
-    .quick-action-btn {
-        display: inline-block;
-        padding: 1rem 1.5rem;
-        margin: 0.5rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white !important;
-        text-decoration: none !important;
-        border-radius: 12px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .quick-action-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-    }
-    
-    @media (max-width: 768px) {
-        .quick-action-btn {
-            display: block;
-            width: 100%;
-            margin: 0.5rem 0;
-        }
-    }
-    
     /* Compact table styling */
     .dataframe {
         font-size: 0.85rem !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
     }
     
-    /* Better graph sizing on mobile */
-    @media (max-width: 768px) {
-        .js-plotly-plot {
-            height: 300px !important;
-        }
+    /* Add spacing between elements */
+    .element-container {
+        margin-bottom: 0.5rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -293,6 +296,18 @@ def format_date_short_nl(date_obj):
             return date_obj
     month_short = DUTCH_MONTHS[date_obj.month][:3]
     return f"{date_obj.day} {month_short}"
+
+
+def make_chart_responsive(fig):
+    """Make plotly chart responsive for mobile"""
+    fig.update_layout(
+        autosize=True,
+        margin=dict(l=20, r=20, t=40, b=20),
+        height=300,  # Will be overridden by CSS on mobile
+    )
+    fig.update_xaxes(fixedrange=False, automargin=True)
+    fig.update_yaxes(fixedrange=False, automargin=True)
+    return fig
 
 
 # Custom CSS
@@ -1479,24 +1494,8 @@ def main():
     if 'quick_action' not in st.session_state:
         st.session_state.quick_action = None
     
-    # Create quick action buttons
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        if st.button("🍽️ Voeding Toevoegen", use_container_width=True, type="primary", key="qa_voeding"):
-            st.session_state.quick_action = "voeding"
-    
-    with col2:
-        if st.button("💪 Training Loggen", use_container_width=True, type="primary", key="qa_training"):
-            st.session_state.quick_action = "kracht"
-    
-    with col3:
-        if st.button("⚖️ Gewicht Registreren", use_container_width=True, type="primary", key="qa_gewicht"):
-            st.session_state.quick_action = "gewicht"
-    
-    with col4:
-        if st.button("📏 Metingen Invoeren", use_container_width=True, type="primary", key="qa_metingen"):
-            st.session_state.quick_action = "metingen"
+    # Quick action info - simple text instructions
+    st.info("� **Tip**: Scroll naar beneden naar de **📝 Data Invoer** tab om snel iets toe te voegen!")
     
     st.markdown("---")
     
@@ -1800,8 +1799,9 @@ def main():
                 st.markdown(f"• {goal}")
     
     # ============================================
-    # AI DAGCOACH
+    # AI DAGCOACH (Hidden on mobile to reduce clutter)
     # ============================================
+    st.markdown('<div class="ai-coach-section">', unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("### 🤖 AI Dagcoach")
     
@@ -1876,16 +1876,10 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Fout bij genereren rapport: {str(e)}")
     
-    # Handle quick actions - show helpful message
-    if st.session_state.get('quick_action'):
-        action_map = {
-            'voeding': '🍽️ Voeding',
-            'kracht': '💪 Kracht',
-            'gewicht': '⚖️ Gewicht',
-            'metingen': '📏 Metingen'
-        }
-        action_name = action_map.get(st.session_state.quick_action, st.session_state.quick_action)
-        st.info(f"💡 **Snelle Actie**: Scroll naar beneden naar **📝 Data Invoer** tab → selecteer **{action_name}**")
+    st.markdown('</div>', unsafe_allow_html=True)  # Close AI coach section
+    
+    # Remove old quick action messages - simplified now
+    st.markdown("---")
     
     # Tabs
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
