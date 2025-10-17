@@ -1502,15 +1502,20 @@ def main():
         st.error("⚠️ Geen sheet ID gevonden. Log opnieuw in.")
         st.stop()
     
-    # Initialize session state for targets
-    if 'targets' not in st.session_state:
-        st.session_state.targets = {
+    # Initialize session state for targets (user-specific key)
+    targets_key = f'targets_{name}'
+    if targets_key not in st.session_state:
+        st.session_state[targets_key] = {
             'calories': 2000,
             'protein': 160,
             'carbs': 180,
             'fats': 60,
-            'weight': 106.2
+            'weight': 106.2,
+            'target_weight': 85.0  # Add separate target weight field
         }
+    
+    # Also keep a reference in the old location for compatibility
+    st.session_state.targets = st.session_state[targets_key]
     
     st.title("💪 Fitness Coach Dashboard")
     st.markdown(f"**{name} - Dashboard**")
@@ -1726,18 +1731,26 @@ def main():
                 new_protein = st.number_input("Eiwit (g)", min_value=80, max_value=300, value=targets['protein'], step=5, key="prot_input")
                 new_fats = st.number_input("Vetten (g)", min_value=30, max_value=150, value=targets['fats'], step=5, key="fats_input")
             
-            st.markdown('<p style="color: white; font-weight: bold; font-size: 16px; margin-top: 15px; margin-bottom: 10px;">**Persoonlijke Info**</p>', unsafe_allow_html=True)
-            new_weight = st.number_input("Huidige Gewicht (kg)", min_value=50.0, max_value=200.0, value=targets['weight'], step=0.1, key="weight_input")
+            st.markdown('<p style="color: white; font-weight: bold; font-size: 16px; margin-top: 15px; margin-bottom: 10px;">**Gewicht Doelen**</p>', unsafe_allow_html=True)
+            col3, col4 = st.columns(2)
+            with col3:
+                new_weight = st.number_input("Huidig Gewicht (kg)", min_value=50.0, max_value=200.0, value=targets['weight'], step=0.1, key="weight_input")
+            with col4:
+                new_target_weight = st.number_input("Doel Gewicht (kg)", min_value=50.0, max_value=200.0, value=targets.get('target_weight', 85.0), step=0.1, key="target_weight_input")
             
             if st.button("💾 Doelen Opslaan", use_container_width=True):
-                st.session_state.targets = {
+                # Save to user-specific targets
+                targets_key = f'targets_{name}'
+                st.session_state[targets_key] = {
                     'calories': new_calories,
                     'protein': new_protein,
                     'carbs': new_carbs,
                     'fats': new_fats,
-                    'weight': new_weight
+                    'weight': new_weight,
+                    'target_weight': new_target_weight
                 }
-                st.success("✅ Doelen opgeslagen!")
+                st.session_state.targets = st.session_state[targets_key]
+                st.success(f"✅ Doelen opgeslagen voor {name}!")
                 st.rerun()
         
         # Display current targets
@@ -1851,28 +1864,46 @@ def main():
                     today_str = today.strftime('%d-%m-%Y')
                     voeding_data = get_voeding_data()
                     
+                    # Debug: Show what date we're looking for
+                    st.info(f"🔍 Zoek data voor: {today_str}")
+                    
                     # Get nutrition totals using the existing function
                     current_nutrition = calculate_nutrition_totals(voeding_data, today_str)
+                    
+                    # Debug: Show nutrition data found
+                    if sum(current_nutrition.values()) > 0:
+                        st.success(f"✅ Voedingsdata gevonden: {current_nutrition['calorien']:.0f} kcal")
+                    else:
+                        st.warning("⚠️ Geen voedingsdata gevonden voor vandaag. Voer eerst je maaltijden in!")
                     
                     # Verzamel workout data
                     workouts_today = []
                     try:
                         kracht_data = get_kracht_data()
                         if kracht_data is not None and not kracht_data.empty:
-                            today_workouts = kracht_data[kracht_data['Datum'] == today.strftime('%d-%m-%Y')]
-                            workouts_today = today_workouts['Oefening'].tolist() if not today_workouts.empty else []
-                    except:
-                        pass
+                            # Check if column is 'Datum' or 'datum'
+                            date_col = 'datum' if 'datum' in kracht_data.columns else 'Datum'
+                            today_workouts = kracht_data[kracht_data[date_col] == today_str]
+                            if not today_workouts.empty and 'Oefening' in today_workouts.columns:
+                                workouts_today = today_workouts['Oefening'].tolist()
+                            elif not today_workouts.empty and 'oefening' in today_workouts.columns:
+                                workouts_today = today_workouts['oefening'].tolist()
+                    except Exception as e:
+                        st.caption(f"Workout data niet beschikbaar: {e}")
                     
                     # Verzamel stappen
                     steps_today = 0
                     try:
                         stappen_data = get_stappen_data()
                         if stappen_data is not None and not stappen_data.empty:
-                            today_steps = stappen_data[stappen_data['Datum'] == today.strftime('%d-%m-%Y')]
-                            steps_today = int(today_steps['Stappen'].sum()) if not today_steps.empty else 0
-                    except:
-                        pass
+                            # Check if column is 'Datum' or 'datum'
+                            date_col = 'datum' if 'datum' in stappen_data.columns else 'Datum'
+                            today_steps = stappen_data[stappen_data[date_col] == today_str]
+                            if not today_steps.empty:
+                                steps_col = 'stappen' if 'stappen' in today_steps.columns else 'Stappen'
+                                steps_today = int(today_steps[steps_col].sum())
+                    except Exception as e:
+                        st.caption(f"Stappen data niet beschikbaar: {e}")
                     
                     # Build data dictionary
                     current_data = {

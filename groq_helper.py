@@ -357,7 +357,8 @@ HUIDIGE STATUS (vandaag tot nu):
 - Trainingen vandaag: {len(current_data.get('workouts', []))} sessies
 
 DOELEN:
-- Gewichtsdoel: {targets.get('weight', 0)}kg
+- Huidig gewicht: {targets.get('weight', 0)}kg
+- Doel gewicht: {targets.get('target_weight', targets.get('weight', 85))}kg
 - Dagelijks calorie target: {targets.get('calories', 2000)} kcal
 - Eiwit target: {targets.get('protein', 160)}g
 
