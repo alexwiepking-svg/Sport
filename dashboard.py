@@ -1901,13 +1901,22 @@ def main():
                     # Verzamel huidige dag data
                     today = datetime.now().date()
                     today_str = today.strftime('%d-%m-%Y')
+                    today_str_slash = today.strftime('%d/%m/%Y')
                     voeding_data = get_voeding_data()
                     
-                    # Debug: Show what date we're looking for
-                    st.info(f"🔍 Zoek data voor: {today_str}")
+                    # Debug: Show what date we're looking for and what's in the data
+                    st.info(f"🔍 Zoek data voor: {today_str} of {today_str_slash}")
                     
-                    # Get nutrition totals using the existing function
+                    # Debug: Show sample dates from voeding data
+                    if voeding_data is not None and not voeding_data.empty and 'datum' in voeding_data.columns:
+                        unique_dates = voeding_data['datum'].unique()[:5]  # First 5 dates
+                        st.caption(f"📅 Datums in sheet: {', '.join(map(str, unique_dates))}")
+                    
+                    # Try both date formats
                     current_nutrition = calculate_nutrition_totals(voeding_data, today_str)
+                    if sum(current_nutrition.values()) == 0:
+                        # Try with slashes
+                        current_nutrition = calculate_nutrition_totals(voeding_data, today_str_slash)
                     
                     # Debug: Show nutrition data found
                     if sum(current_nutrition.values()) > 0:
