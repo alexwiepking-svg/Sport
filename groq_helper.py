@@ -346,27 +346,43 @@ def generate_daily_coaching(current_data: Dict[str, Any], targets: Dict[str, Any
         carbs = nutrition.get('koolhydraten', 0)
         fats = nutrition.get('vetten', 0)
         
+        # Get workout details
+        total_workouts = len(current_data.get('workouts', []))
+        cardio_sessions = current_data.get('cardio_sessions', [])
+        kracht_sessions = current_data.get('kracht_sessions', [])
+        
+        # Build workout summary
+        workout_summary = []
+        if cardio_sessions:
+            workout_summary.append(f"Cardio: {', '.join(cardio_sessions[:3])}")  # Max 3 shown
+        if kracht_sessions:
+            workout_summary.append(f"Kracht: {', '.join(kracht_sessions[:3])}")  # Max 3 shown
+        workout_details = "; ".join(workout_summary) if workout_summary else "Geen trainingen"
+        
         context = f"""Je bent een persoonlijke fitness coach die {name} helpt met hun dagelijkse voortgang.
 
 HUIDIGE STATUS (vandaag tot nu):
-- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal
-- Eiwitten: {protein:.0f}/{targets.get('protein', 160)}g
+- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal ({(calories/targets.get('calories', 2000)*100):.0f}%)
+- Eiwitten: {protein:.0f}/{targets.get('protein', 160)}g ({(protein/targets.get('protein', 160)*100):.0f}%)
 - Koolhydraten: {carbs:.0f}/{targets.get('carbs', 180)}g
 - Vetten: {fats:.0f}/{targets.get('fats', 60)}g
-- Stappen: {current_data.get('steps', 0)}/10000
-- Trainingen vandaag: {len(current_data.get('workouts', []))} sessies
+- Stappen: {current_data.get('steps', 0):,}/10.000
+- Trainingen: {total_workouts} sessies ({workout_details})
+  * Cardio: {len(cardio_sessions)} sessies
+  * Kracht: {len(kracht_sessions)} sessies
 
 DOELEN:
-- Huidig gewicht: {targets.get('weight', 0)}kg
-- Doel gewicht: {targets.get('target_weight', targets.get('weight', 85))}kg
+- Huidig gewicht: {targets.get('weight', 0):.1f}kg
+- Doel gewicht: {targets.get('target_weight', targets.get('weight', 85)):.1f}kg
+- Verschil: {abs(targets.get('weight', 0) - targets.get('target_weight', 85)):.1f}kg te gaan
 - Dagelijks calorie target: {targets.get('calories', 2000)} kcal
 - Eiwit target: {targets.get('protein', 160)}g
 
 Genereer een KORT, MOTIVEREND en PRAKTISCH rapport met:
-1. 📊 Snelle analyse van de huidige voortgang (2-3 zinnen)
-2. 💡 Specifiek advies voor de rest van de dag (wat moet er nog gebeuren?)
+1. 📊 Snelle analyse van de huidige voortgang (2-3 zinnen, noem specifieke percentages en aantallen)
+2. 💡 Specifiek advies voor de rest van de dag (wat moet er NOG gebeuren? Hoeveel calorieën/eiwit nog?)
 3. 🍽️ Concrete suggesties voor de volgende maaltijd (met geschatte macros)
-4. 💪 Training advies (als er nog getraind moet worden)
+4. 💪 Training advies gebaseerd op wat al gedaan is (cardio/kracht balans, suggesties voor vandaag)
 5. 🎯 1 motiverende zin om de dag sterk af te sluiten
 
 Gebruik emojis, wees enthousiast maar realistisch. Maximaal 200 woorden.

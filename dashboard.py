@@ -1924,39 +1924,96 @@ def main():
                     else:
                         st.warning("⚠️ Geen voedingsdata gevonden voor vandaag. Voer eerst je maaltijden in!")
                     
-                    # Verzamel workout data
+                    # Verzamel ALLE activiteiten data (cardio + kracht)
                     workouts_today = []
+                    cardio_sessions = []
+                    kracht_sessions = []
+                    
+                    try:
+                        # Get activiteiten data (includes both cardio and strength)
+                        activiteiten_data = get_activiteiten_data()
+                        if activiteiten_data is not None and not activiteiten_data.empty:
+                            # Find date column
+                            date_col = 'datum' if 'datum' in activiteiten_data.columns else 'Datum'
+                            # Try both date formats
+                            today_activities = activiteiten_data[activiteiten_data[date_col].isin([today_str, today_str_slash])]
+                            
+                            if not today_activities.empty:
+                                # Find activity name column
+                                activity_col = None
+                                for col in ['activiteit', 'Activiteit', 'oefening', 'Oefening']:
+                                    if col in today_activities.columns:
+                                        activity_col = col
+                                        break
+                                
+                                # Find type column
+                                type_col = None
+                                for col in ['type', 'Type']:
+                                    if col in today_activities.columns:
+                                        type_col = col
+                                        break
+                                
+                                if activity_col:
+                                    workouts_today = today_activities[activity_col].tolist()
+                                    
+                                    # Separate by type if available
+                                    if type_col:
+                                        cardio_activities = today_activities[today_activities[type_col].str.lower().str.contains('cardio', na=False)]
+                                        kracht_activities = today_activities[today_activities[type_col].str.lower().str.contains('kracht', na=False)]
+                                        
+                                        if not cardio_activities.empty:
+                                            cardio_sessions = cardio_activities[activity_col].tolist()
+                                        if not kracht_activities.empty:
+                                            kracht_sessions = kracht_activities[activity_col].tolist()
+                                
+                                st.success(f"✅ Activiteiten gevonden: {len(workouts_today)} sessies")
+                    except Exception as e:
+                        st.caption(f"⚠️ Activiteiten data: {str(e)}")
+                    
+                    # Also check eGym/kracht sheet
                     try:
                         kracht_data = get_kracht_data()
                         if kracht_data is not None and not kracht_data.empty:
-                            # Check if column is 'Datum' or 'datum'
                             date_col = 'datum' if 'datum' in kracht_data.columns else 'Datum'
-                            today_workouts = kracht_data[kracht_data[date_col] == today_str]
-                            if not today_workouts.empty and 'Oefening' in today_workouts.columns:
-                                workouts_today = today_workouts['Oefening'].tolist()
-                            elif not today_workouts.empty and 'oefening' in today_workouts.columns:
-                                workouts_today = today_workouts['oefening'].tolist()
+                            today_kracht = kracht_data[kracht_data[date_col].isin([today_str, today_str_slash])]
+                            
+                            if not today_kracht.empty:
+                                # Find exercise column
+                                exercise_col = None
+                                for col in ['oefening', 'Oefening', 'exercise', 'Exercise']:
+                                    if col in today_kracht.columns:
+                                        exercise_col = col
+                                        break
+                                
+                                if exercise_col:
+                                    egym_workouts = today_kracht[exercise_col].tolist()
+                                    kracht_sessions.extend(egym_workouts)
+                                    if egym_workouts:
+                                        st.success(f"✅ eGym kracht trainingen: {len(egym_workouts)}")
                     except Exception as e:
-                        st.caption(f"Workout data niet beschikbaar: {e}")
+                        st.caption(f"⚠️ eGym data: {str(e)}")
                     
                     # Verzamel stappen
                     steps_today = 0
                     try:
                         stappen_data = get_stappen_data()
                         if stappen_data is not None and not stappen_data.empty:
-                            # Check if column is 'Datum' or 'datum'
                             date_col = 'datum' if 'datum' in stappen_data.columns else 'Datum'
-                            today_steps = stappen_data[stappen_data[date_col] == today_str]
+                            today_steps = stappen_data[stappen_data[date_col].isin([today_str, today_str_slash])]
+                            
                             if not today_steps.empty:
                                 steps_col = 'stappen' if 'stappen' in today_steps.columns else 'Stappen'
                                 steps_today = int(today_steps[steps_col].sum())
+                                st.success(f"✅ Stappen gevonden: {steps_today:,}")
                     except Exception as e:
-                        st.caption(f"Stappen data niet beschikbaar: {e}")
+                        st.caption(f"⚠️ Stappen data: {str(e)}")
                     
-                    # Build data dictionary
+                    # Build comprehensive data dictionary
                     current_data = {
                         'nutrition': current_nutrition,
                         'workouts': workouts_today,
+                        'cardio_sessions': cardio_sessions,
+                        'kracht_sessions': kracht_sessions,
                         'steps': steps_today
                     }
                     
