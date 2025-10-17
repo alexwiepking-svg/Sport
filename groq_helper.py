@@ -317,3 +317,72 @@ def test_groq_connection() -> Dict[str, Any]:
             'success': False,
             'message': f'❌ Groq API verbinding mislukt: {error_msg}'
         }
+
+
+def generate_daily_coaching(current_data: Dict[str, Any], targets: Dict[str, Any], name: str = "gebruiker") -> str:
+    """
+    Genereer een persoonlijk dagcoaching rapport op basis van huidige voortgang
+    
+    Args:
+        current_data: Dictionary met huidige dag data:
+            - nutrition: {calories, protein, carbs, fats}
+            - workouts: list van trainingen
+            - steps: aantal stappen
+            - weight: huidige gewicht
+        targets: Dictionary met doelen:
+            - calories, protein, carbs, fats, weight
+        name: Naam van de gebruiker
+    
+    Returns:
+        Markdown-formatted coaching rapport
+    """
+    try:
+        client = get_groq_client()
+        
+        # Build context voor de AI
+        context = f"""Je bent een persoonlijke fitness coach die {name} helpt met hun dagelijkse voortgang.
+
+HUIDIGE STATUS (vandaag tot nu):
+- Calorieën: {current_data.get('nutrition', {}).get('calories', 0)}/{targets.get('calories', 2000)} kcal
+- Eiwitten: {current_data.get('nutrition', {}).get('protein', 0)}/{targets.get('protein', 160)}g
+- Koolhydraten: {current_data.get('nutrition', {}).get('carbs', 0)}/{targets.get('carbs', 180)}g
+- Vetten: {current_data.get('nutrition', {}).get('fats', 0)}/{targets.get('fats', 60)}g
+- Stappen: {current_data.get('steps', 0)}/10000
+- Trainingen vandaag: {len(current_data.get('workouts', []))} sessies
+
+DOELEN:
+- Gewichtsdoel: {targets.get('weight', 0)}kg
+- Dagelijks calorie target: {targets.get('calories', 2000)} kcal
+- Eiwit target: {targets.get('protein', 160)}g
+
+Genereer een KORT, MOTIVEREND en PRAKTISCH rapport met:
+1. 📊 Snelle analyse van de huidige voortgang (2-3 zinnen)
+2. 💡 Specifiek advies voor de rest van de dag (wat moet er nog gebeuren?)
+3. 🍽️ Concrete suggesties voor de volgende maaltijd (met geschatte macros)
+4. 💪 Training advies (als er nog getraind moet worden)
+5. 🎯 1 motiverende zin om de dag sterk af te sluiten
+
+Gebruik emojis, wees enthousiast maar realistisch. Maximaal 200 woorden.
+Schrijf in het Nederlands, spreek de gebruiker direct aan met "je".
+"""
+        
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Je bent een enthousiaste Nederlandse fitness coach die kort en krachtig advies geeft."
+                },
+                {
+                    "role": "user",
+                    "content": context
+                }
+            ],
+            temperature=0.8,
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        return f"❌ Kon geen coaching rapport genereren: {str(e)}"

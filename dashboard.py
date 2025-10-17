@@ -1799,6 +1799,83 @@ def main():
             for goal in recommendations['goals']:
                 st.markdown(f"• {goal}")
     
+    # ============================================
+    # AI DAGCOACH
+    # ============================================
+    st.markdown("---")
+    st.markdown("### 🤖 AI Dagcoach")
+    
+    col_coach1, col_coach2 = st.columns([3, 1])
+    
+    with col_coach1:
+        st.markdown("**Krijg een persoonlijk advies voor de rest van je dag** 🎯")
+    
+    with col_coach2:
+        if st.button("🔮 Genereer Advies", use_container_width=True, type="secondary"):
+            with st.spinner("🤖 AI analyseert je dag..."):
+                try:
+                    # Verzamel huidige dag data
+                    today = datetime.now().date()
+                    voeding_data = get_voeding_data()
+                    
+                    if voeding_data is not None and not voeding_data.empty:
+                        # Filter op vandaag
+                        today_data = voeding_data[voeding_data['Datum'] == today.strftime('%d-%m-%Y')]
+                        
+                        current_nutrition = {
+                            'calories': int(today_data['Calorieën'].sum()) if not today_data.empty else 0,
+                            'protein': int(today_data['Eiwitten (g)'].sum()) if not today_data.empty else 0,
+                            'carbs': int(today_data['Koolhydraten (g)'].sum()) if not today_data.empty else 0,
+                            'fats': int(today_data['Vetten (g)'].sum()) if not today_data.empty else 0
+                        }
+                    else:
+                        current_nutrition = {'calories': 0, 'protein': 0, 'carbs': 0, 'fats': 0}
+                    
+                    # Verzamel workout data
+                    workouts_today = []
+                    try:
+                        kracht_data = get_kracht_data()
+                        if kracht_data is not None and not kracht_data.empty:
+                            today_workouts = kracht_data[kracht_data['Datum'] == today.strftime('%d-%m-%Y')]
+                            workouts_today = today_workouts['Oefening'].tolist() if not today_workouts.empty else []
+                    except:
+                        pass
+                    
+                    # Verzamel stappen
+                    steps_today = 0
+                    try:
+                        stappen_data = get_stappen_data()
+                        if stappen_data is not None and not stappen_data.empty:
+                            today_steps = stappen_data[stappen_data['Datum'] == today.strftime('%d-%m-%Y')]
+                            steps_today = int(today_steps['Stappen'].sum()) if not today_steps.empty else 0
+                    except:
+                        pass
+                    
+                    # Build data dictionary
+                    current_data = {
+                        'nutrition': current_nutrition,
+                        'workouts': workouts_today,
+                        'steps': steps_today
+                    }
+                    
+                    # Genereer coaching
+                    if HELPERS_AVAILABLE:
+                        coaching_report = groq_helper.generate_daily_coaching(
+                            current_data=current_data,
+                            targets=st.session_state.targets,
+                            name=name
+                        )
+                        
+                        st.markdown("---")
+                        st.markdown(coaching_report)
+                        st.markdown("---")
+                        st.caption(f"🕐 Gegenereerd op {datetime.now().strftime('%H:%M')}")
+                    else:
+                        st.error("AI Dagcoach is niet beschikbaar (groq_helper niet geladen)")
+                        
+                except Exception as e:
+                    st.error(f"❌ Fout bij genereren rapport: {str(e)}")
+    
     # Handle quick actions - show helpful message
     if st.session_state.get('quick_action'):
         action_map = {
