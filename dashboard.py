@@ -40,17 +40,18 @@ st.markdown("""
 <style>
     /* Mobile optimizations */
     @media (max-width: 768px) {
-        /* Reduce padding */
+        /* Minimize padding */
         .main .block-container {
-            padding-top: 1rem !important;
+            padding-top: 0.5rem !important;
+            padding-bottom: 0.5rem !important;
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
         }
         
-        /* Smaller headers */
-        h1 { font-size: 1.3rem !important; margin-bottom: 0.5rem !important; }
-        h2 { font-size: 1.15rem !important; margin-bottom: 0.5rem !important; }
-        h3 { font-size: 1rem !important; margin-bottom: 0.5rem !important; }
+        /* Smaller headers with minimal spacing */
+        h1 { font-size: 1.3rem !important; margin-bottom: 0.3rem !important; margin-top: 0.3rem !important; }
+        h2 { font-size: 1.15rem !important; margin-bottom: 0.3rem !important; margin-top: 0.3rem !important; }
+        h3 { font-size: 1rem !important; margin-bottom: 0.25rem !important; margin-top: 0.25rem !important; }
         
         /* Compact metrics */
         [data-testid="stMetricValue"] {
@@ -60,12 +61,12 @@ st.markdown("""
             font-size: 0.85rem !important;
         }
         
-        /* Full-width buttons */
+        /* Full-width buttons with minimal spacing */
         .stButton button {
             width: 100% !important;
-            padding: 0.6rem !important;
+            padding: 0.5rem !important;
             font-size: 0.95rem !important;
-            margin-bottom: 0.5rem !important;
+            margin-bottom: 0.3rem !important;
         }
         
         /* Compact inputs */
@@ -74,16 +75,21 @@ st.markdown("""
             padding: 0.5rem !important;
         }
         
-        /* Stack columns vertically on mobile */
+        /* Stack columns vertically on mobile with minimal spacing */
         [data-testid="column"] {
             width: 100% !important;
             flex: 100% !important;
-            margin-bottom: 0.5rem !important;
+            margin-bottom: 0.25rem !important;
         }
         
-        /* Add spacing between stacked columns */
+        /* Reduce spacing between stacked column content */
         [data-testid="column"] > div {
-            margin-bottom: 0.75rem !important;
+            margin-bottom: 0.3rem !important;
+        }
+        
+        /* Minimize element container spacing */
+        .element-container {
+            margin-bottom: 0.25rem !important;
         }
         
         /* Smaller tabs */
@@ -117,6 +123,23 @@ st.markdown("""
         .user-select-none {
             overflow-x: hidden !important;
         }
+        
+        /* Minimize divider spacing */
+        hr {
+            margin-top: 0.5rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Compact info/warning boxes */
+        [data-testid="stAlert"] {
+            padding: 0.5rem !important;
+            margin-bottom: 0.3rem !important;
+        }
+        
+        /* Compact expanders */
+        [data-testid="stExpander"] {
+            margin-bottom: 0.3rem !important;
+        }
     }
     
     /* Touch-friendly buttons (all screens) */
@@ -140,9 +163,9 @@ st.markdown("""
         overflow-x: auto !important;
     }
     
-    /* Add spacing between elements */
+    /* Reduce spacing between elements (all screens) */
     .element-container {
-        margin-bottom: 0.5rem !important;
+        margin-bottom: 0.3rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
