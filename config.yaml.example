@@ -1,0 +1,20 @@
+credentials:
+  usernames:
+    alex:
+      email: alex@example.com
+      name: Alex
+      password: $2b$12$EXAMPLE_HASH_REPLACE_WITH_REAL_HASH
+    partner:
+      email: partner@example.com
+      name: Partner
+      password: $2b$12$EXAMPLE_HASH_REPLACE_WITH_REAL_HASH
+
+cookie:
+  expiry_days: 30
+  key: random_signature_key_here_change_this  # Verander dit naar een random string!
+  name: sport_dashboard_cookie
+
+preauthorized:
+  emails:
+  - alex@example.com
+  - partner@example.com
