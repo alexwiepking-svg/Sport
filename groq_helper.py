@@ -524,3 +524,159 @@ Wees kort, specifiek en gemotiveerd. Max 10 woorden per actie. Gebruik getallen.
             ]
         }
 
+def generate_insights_and_feedback(current_data, targets, period_stats, name):
+    """
+    Genereer slimme inzichten EN verbeterpunten/successen voor in de Overzicht tab
+    
+    Args:
+        current_data: Dict met huidige voortgang (nutrition totals)
+        targets: Dict met doelen
+        period_stats: Dict met periode statistieken
+        name: Naam gebruiker
+        
+    Returns:
+        Dict met 'insights' (list), 'improvements' (list), 'successes' (list)
+    """
+    try:
+        client = get_groq_client()
+        
+        # Extract data
+        nutrition = current_data.get('nutrition', {})
+        calories = nutrition.get('calorien', 0)
+        protein = nutrition.get('eiwit', 0)
+        carbs = nutrition.get('koolhydraten', 0)
+        fats = nutrition.get('vetten', 0)
+        
+        context = f"""Analyseer {name}'s voortgang en geef concrete feedback.
+
+HUIDIGE DATA:
+- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal
+- Eiwit: {protein:.0f}/{targets.get('protein', 160)}g
+- Koolhydraten: {carbs:.0f}/{targets.get('carbs', 180)}g
+- Vetten: {fats:.0f}/{targets.get('fats', 60)}g
+- Trainingen: {period_stats.get('total_workouts', 0)} (cardio: {period_stats.get('cardio_sessions', 0)}, kracht: {period_stats.get('strength_sessions', 0)})
+- Gemiddelde calorieën: {period_stats.get('avg_calories', 0):.0f}
+
+DOELEN:
+- Huidig: {targets.get('weight', 106)}kg → Doel: {targets.get('target_weight', 85)}kg
+
+Genereer 3 categorieën feedback:
+
+1. **SLIMME INZICHTEN** (2-3 items): Belangrijkste observaties over calorieën, eiwit, training
+   Format: [type]|[icon]|[titel]|[bericht]
+   Types: success (groen), warning (oranje), info (blauw)
+   Iconen: ✅⚠️💡🔥💪
+
+2. **VERBETERPUNTEN** (3-4 items): Concrete dingen die beter kunnen met getallen
+   Format: 🔴 [urgent probleem] OF 🟡 [minder urgent]
+
+3. **WAT GOED GAAT** (3-4 items): Positieve feedback, wat gaat al goed
+   Format: 🟢 [succes met detail]
+
+Wees specifiek met getallen, direct, en gemotiveerd. Max 15 woorden per item."""
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "Je bent een directe fitness coach die concrete, meetbare feedback geeft."},
+                {"role": "user", "content": context}
+            ],
+            temperature=0.7,
+            max_tokens=400
+        )
+        
+        content = response.choices[0].message.content
+        
+        # Parse response
+        insights = []
+        improvements = []
+        successes = []
+        
+        current_section = None
+        for line in content.split('\n'):
+            line = line.strip()
+            
+            # Detect sections
+            if 'INZICHT' in line.upper() or 'INSIGHT' in line.upper():
+                current_section = 'insights'
+                continue
+            elif 'VERBETER' in line.upper() or 'IMPROVE' in line.upper():
+                current_section = 'improvements'
+                continue
+            elif 'GOED' in line.upper() or 'SUCCESS' in line.upper() or 'GAAT' in line.upper():
+                current_section = 'successes'
+                continue
+            
+            # Parse insights (special format)
+            if current_section == 'insights' and '|' in line:
+                parts = line.split('|')
+                if len(parts) >= 4:
+                    insights.append({
+                        'type': parts[0].strip(),
+                        'icon': parts[1].strip(),
+                        'title': parts[2].strip(),
+                        'message': parts[3].strip()
+                    })
+            
+            # Parse improvements/successes (bullet points)
+            elif line.startswith('🔴') or line.startswith('🟡'):
+                if current_section == 'improvements':
+                    improvements.append(line)
+            elif line.startswith('🟢'):
+                if current_section == 'successes':
+                    successes.append(line)
+        
+        # Fallback if parsing failed
+        if not insights:
+            if calories < targets.get('calories', 2000) - 200:
+                insights.append({
+                    'type': 'warning',
+                    'icon': '⚠️',
+                    'title': 'Calorieën te laag',
+                    'message': f"Je gemiddelde van {calories:.0f} kcal is te laag. Verhoog naar {targets.get('calories', 2000)} voor optimaal resultaat."
+                })
+            if protein < targets.get('protein', 160):
+                insights.append({
+                    'type': 'warning',
+                    'icon': '⚠️',
+                    'title': 'Eiwit te laag',
+                    'message': f"Slechts {protein:.0f}g eiwit. Verhoog naar {targets.get('protein', 160)}g+ voor spierbehoud."
+                })
+        
+        if not improvements:
+            improvements = [
+                f"🔴 Te weinig calorieën: {calories:.0f} kcal is te laag" if calories < 1900 else f"🟡 Eiwit te laag: {protein:.0f}g (doel: {targets.get('protein', 160)}g)",
+                "🟡 Voeg meer groenten toe bij elke maaltijd"
+            ]
+        
+        if not successes:
+            successes = [
+                "🟢 Consistente training en data bijhouden",
+                "🟢 Goede discipline in tracking"
+            ]
+        
+        return {
+            'insights': insights[:3],  # Max 3
+            'improvements': improvements[:4],  # Max 4
+            'successes': successes[:4]  # Max 4
+        }
+        
+    except Exception as e:
+        # Fallback to basic feedback
+        return {
+            'insights': [{
+                'type': 'info',
+                'icon': '💡',
+                'title': 'Blijf tracken',
+                'message': 'Consistentie is key voor succes!'
+            }],
+            'improvements': [
+                f"🟡 Eiwit verhogen naar {targets.get('protein', 160)}g",
+                "🟡 Drink 2-3L water per dag"
+            ],
+            'successes': [
+                "🟢 Data wordt bijgehouden",
+                "🟢 Training is consistent"
+            ]
+        }
+

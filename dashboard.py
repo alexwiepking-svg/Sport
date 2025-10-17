@@ -2549,8 +2549,21 @@ def main():
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Smart Insights
-        insights = generate_insights(period_stats, totals, view_mode, targets)
+        # Smart Insights - AI Generated
+        if HELPERS_AVAILABLE:
+            try:
+                feedback_data = {
+                    'nutrition': totals
+                }
+                ai_feedback = groq_helper.generate_insights_and_feedback(
+                    feedback_data, targets, period_stats, name
+                )
+                insights = ai_feedback.get('insights', [])
+            except:
+                # Fallback to static if AI fails
+                insights = generate_insights(period_stats, totals, view_mode, targets)
+        else:
+            insights = generate_insights(period_stats, totals, view_mode, targets)
         
         if insights:
             st.markdown("### 🤖 Slimme Inzichten")
@@ -2595,28 +2608,52 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         
-        # Action items - only in detailed mode
+        # Action items - only in detailed mode - AI Generated
         if st.session_state.focus_mode == "detailed":
             st.markdown("---")
             st.markdown("### 📋 Analyse & Feedback")
             
-            # Verbeterpunten data
-            issues = []
-            if totals['calorien'] < 1900:
-                issues.append(f"🔴 Te weinig calorieën: {totals['calorien']:.0f} kcal is te laag voor training")
-            if totals['vetten'] > 65:
-                issues.append(f"🔴 Te veel vetten: {totals['vetten']:.0f}g (doel: 60g). Beperk zuivel en kookroom")
-            if totals['eiwit'] < 140:
-                issues.append(f"🟡 Eiwit te laag: {totals['eiwit']:.0f}g (doel: 160g)")
-            issues.append("🟡 Voeg meer groenten toe bij elke maaltijd")
-            
-            # Successen data
-            successes = []
-            if totals['eiwit'] >= 140:
-                successes.append(f"🟢 Uitstekende eiwitinname: {totals['eiwit']:.0f}g!")
-            if totals['calorien'] >= 1900:
-                successes.append("🟢 Goede calorie-inname voor training")
-            successes.append("🟢 Consistente training en data bijhouden")
+            # Get AI feedback
+            if HELPERS_AVAILABLE:
+                try:
+                    feedback_data = {
+                        'nutrition': totals
+                    }
+                    ai_feedback = groq_helper.generate_insights_and_feedback(
+                        feedback_data, targets, period_stats, name
+                    )
+                    issues = ai_feedback.get('improvements', [])
+                    successes = ai_feedback.get('successes', [])
+                except:
+                    # Fallback to static
+                    issues = []
+                    if totals['calorien'] < 1900:
+                        issues.append(f"🔴 Te weinig calorieën: {totals['calorien']:.0f} kcal is te laag voor training")
+                    if totals['eiwit'] < 140:
+                        issues.append(f"🟡 Eiwit te laag: {totals['eiwit']:.0f}g (doel: 160g)")
+                    issues.append("🟡 Voeg meer groenten toe bij elke maaltijd")
+                    
+                    successes = []
+                    if totals['eiwit'] >= 140:
+                        successes.append(f"🟢 Uitstekende eiwitinname: {totals['eiwit']:.0f}g!")
+                    successes.append("🟢 Consistente training en data bijhouden")
+            else:
+                # Static fallback
+                issues = []
+                if totals['calorien'] < 1900:
+                    issues.append(f"🔴 Te weinig calorieën: {totals['calorien']:.0f} kcal is te laag voor training")
+                if totals['vetten'] > 65:
+                    issues.append(f"🔴 Te veel vetten: {totals['vetten']:.0f}g (doel: 60g)")
+                if totals['eiwit'] < 140:
+                    issues.append(f"🟡 Eiwit te laag: {totals['eiwit']:.0f}g (doel: 160g)")
+                issues.append("🟡 Voeg meer groenten toe bij elke maaltijd")
+                
+                successes = []
+                if totals['eiwit'] >= 140:
+                    successes.append(f"🟢 Uitstekende eiwitinname: {totals['eiwit']:.0f}g!")
+                if totals['calorien'] >= 1900:
+                    successes.append("🟢 Goede calorie-inname voor training")
+                successes.append("🟢 Consistente training en data bijhouden")
             
             # Render beide boxen in een flexbox container
             st.markdown(f"""
