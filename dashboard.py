@@ -77,7 +77,7 @@ username = st.session_state.get("username")
 # Map username to their Google Sheet ID
 SHEET_MAPPING = {
     'alex': os.getenv('SHEET_ID_ALEX'),
-    'partner': os.getenv('SHEET_ID_PARTNER')
+    'tamara': os.getenv('SHEET_ID_PARTNER')
 }
 
 # Get the sheet ID for the current user
