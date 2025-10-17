@@ -36,16 +36,19 @@ st.set_page_config(
 # ============================================
 # AUTHENTICATION
 # ============================================
-# Try to load config from secrets (Streamlit Cloud) or local file
-try:
+# Load config from secrets (Streamlit Cloud) or local file
+import copy
+import os
+
+# Check if running on Streamlit Cloud (secrets available)
+if 'credentials' in st.secrets:
     # Streamlit Cloud: use st.secrets (make a deep copy to avoid read-only issues)
-    import copy
     config = {
-        'credentials': copy.deepcopy(dict(st.secrets.get('credentials', {}))),
-        'cookie': dict(st.secrets.get('cookie', {})),
-        'preauthorized': dict(st.secrets.get('preauthorized', {}))
+        'credentials': copy.deepcopy(dict(st.secrets['credentials'])),
+        'cookie': dict(st.secrets['cookie']),
+        'preauthorized': dict(st.secrets.get('preauthorized', {'emails': []}))
     }
-except Exception:
+else:
     # Local: use config.yaml file
     with open('config.yaml') as file:
         config = yaml.load(file, Loader=SafeLoader)
