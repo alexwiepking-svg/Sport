@@ -36,8 +36,18 @@ st.set_page_config(
 # ============================================
 # AUTHENTICATION
 # ============================================
-with open('config.yaml') as file:
-    config = yaml.load(file, Loader=SafeLoader)
+# Try to load config from secrets (Streamlit Cloud) or local file
+try:
+    # Streamlit Cloud: use st.secrets
+    config = {
+        'credentials': st.secrets.get('credentials', {}),
+        'cookie': st.secrets.get('cookie', {}),
+        'preauthorized': st.secrets.get('preauthorized', {})
+    }
+except Exception:
+    # Local: use config.yaml file
+    with open('config.yaml') as file:
+        config = yaml.load(file, Loader=SafeLoader)
 
 authenticator = stauth.Authenticate(
     config['credentials'],

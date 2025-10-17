@@ -20,6 +20,20 @@ SCOPES = [
 def get_sheets_client():
     """Maak verbinding met Google Sheets API"""
     try:
+        # Try Streamlit secrets first (for cloud deployment)
+        try:
+            import streamlit as st
+            if 'gcp_service_account' in st.secrets:
+                creds = Credentials.from_service_account_info(
+                    st.secrets['gcp_service_account'],
+                    scopes=SCOPES
+                )
+                client = gspread.authorize(creds)
+                return client
+        except Exception:
+            pass
+        
+        # Fallback to local credentials.json file
         creds_path = os.getenv('GOOGLE_CREDENTIALS_PATH', 'credentials.json')
         
         if not os.path.exists(creds_path):
