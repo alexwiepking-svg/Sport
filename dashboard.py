@@ -37,16 +37,40 @@ st.set_page_config(
 # AUTHENTICATION
 # ============================================
 # Load config from secrets (Streamlit Cloud) or local file
-import copy
 import os
+
+# Helper function to convert Streamlit Secrets to regular dict
+def secrets_to_dict(secrets_obj):
+    """Recursively convert Streamlit Secrets object to regular dict"""
+    if hasattr(secrets_obj, 'to_dict'):
+        return secrets_obj.to_dict()
+    elif isinstance(secrets_obj, dict):
+        return {k: secrets_to_dict(v) for k, v in secrets_obj.items()}
+    else:
+        return secrets_obj
 
 # Check if running on Streamlit Cloud (secrets available)
 if 'credentials' in st.secrets:
-    # Streamlit Cloud: use st.secrets (make a deep copy to avoid read-only issues)
+    # Streamlit Cloud: convert secrets to regular dicts
     config = {
-        'credentials': copy.deepcopy(dict(st.secrets['credentials'])),
-        'cookie': dict(st.secrets['cookie']),
-        'preauthorized': dict(st.secrets.get('preauthorized', {'emails': []}))
+        'credentials': {
+            'usernames': {
+                username: {
+                    'email': str(st.secrets['credentials']['usernames'][username]['email']),
+                    'name': str(st.secrets['credentials']['usernames'][username]['name']),
+                    'password': str(st.secrets['credentials']['usernames'][username]['password'])
+                }
+                for username in st.secrets['credentials']['usernames'].keys()
+            }
+        },
+        'cookie': {
+            'name': str(st.secrets['cookie']['name']),
+            'key': str(st.secrets['cookie']['key']),
+            'expiry_days': int(st.secrets['cookie']['expiry_days'])
+        },
+        'preauthorized': {
+            'emails': list(st.secrets.get('preauthorized', {}).get('emails', []))
+        }
     }
 else:
     # Local: use config.yaml file
