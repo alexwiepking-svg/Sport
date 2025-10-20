@@ -3003,7 +3003,10 @@ def main():
         if HELPERS_AVAILABLE:
             try:
                 feedback_data = {
-                    'nutrition': totals
+                    'nutrition': totals,
+                    'view_mode': view_mode,
+                    'start_date': start_date,
+                    'end_date': end_date
                 }
                 ai_feedback = groq_helper.generate_insights_and_feedback(
                     feedback_data, targets, period_stats, name
@@ -3096,7 +3099,10 @@ def main():
             if HELPERS_AVAILABLE:
                 try:
                     feedback_data = {
-                        'nutrition': totals
+                        'nutrition': totals,
+                        'view_mode': view_mode,
+                        'start_date': start_date,
+                        'end_date': end_date
                     }
                     ai_feedback = groq_helper.generate_insights_and_feedback(
                         feedback_data, targets, period_stats, name

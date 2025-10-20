@@ -529,7 +529,7 @@ def generate_insights_and_feedback(current_data, targets, period_stats, name):
     Genereer slimme inzichten EN verbeterpunten/successen voor in de Overzicht tab
     
     Args:
-        current_data: Dict met huidige voortgang (nutrition totals)
+        current_data: Dict met huidige voortgang (nutrition totals), view_mode, date range
         targets: Dict met doelen
         period_stats: Dict met periode statistieken
         name: Naam gebruiker
@@ -547,18 +547,50 @@ def generate_insights_and_feedback(current_data, targets, period_stats, name):
         carbs = nutrition.get('koolhydraten', 0)
         fats = nutrition.get('vetten', 0)
         
-        context = f"""Analyseer {name}'s voortgang en geef concrete feedback.
+        # Get time context
+        view_mode = current_data.get('view_mode', '📅 Dag')
+        start_date = current_data.get('start_date')
+        end_date = current_data.get('end_date')
+        
+        # Determine period type
+        if '📅 Dag' in view_mode:
+            period_type = "vandaag"
+            period_label = "dagelijkse"
+        elif '📊 Week' in view_mode:
+            period_type = "deze week"
+            period_label = "weekgemiddelde"
+        else:  # Maand
+            period_type = "deze maand"
+            period_label = "maandgemiddelde"
+        
+        # Calculate remaining calories/macros for the day (only for daily view)
+        remaining_context = ""
+        if '📅 Dag' in view_mode:
+            remaining_cals = targets.get('calories', 2000) - calories
+            remaining_protein = targets.get('protein', 160) - protein
+            if remaining_cals > 0:
+                remaining_context = f"\nResterend vandaag: {remaining_cals:.0f} kcal, {remaining_protein:.0f}g eiwit"
+        
+        context = f"""Analyseer {name}'s voortgang over {period_type} en geef REALISTISCHE, ACTIONABLE feedback.
 
-HUIDIGE DATA:
-- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal
-- Eiwit: {protein:.0f}/{targets.get('protein', 160)}g
+TIJDSPERIODE: {period_type.upper()} ({period_label} data)
+Dagen in periode: {period_stats.get('days', 1)}
+
+DATA VOOR {period_type.upper()}:
+- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal ({period_label})
+- Eiwit: {protein:.0f}/{targets.get('protein', 160)}g ({period_label})
 - Koolhydraten: {carbs:.0f}/{targets.get('carbs', 180)}g
 - Vetten: {fats:.0f}/{targets.get('fats', 60)}g
-- Trainingen: {period_stats.get('total_workouts', 0)} (cardio: {period_stats.get('cardio_sessions', 0)}, kracht: {period_stats.get('strength_sessions', 0)})
-- Gemiddelde calorieën: {period_stats.get('avg_calories', 0):.0f}
+- Trainingen: {period_stats.get('total_workouts', 0)} (cardio: {period_stats.get('cardio_sessions', 0)}, kracht: {period_stats.get('strength_sessions', 0)}){remaining_context}
 
 DOELEN:
-- Huidig: {targets.get('weight', 106)}kg → Doel: {targets.get('target_weight', 85)}kg
+- Huidig gewicht: {targets.get('weight', 106)}kg → Doel: {targets.get('target_weight', 85)}kg
+
+BELANGRIJK:
+- Als dit WEEK/MAAND data is: geef TREND feedback, niet dagadvies
+- Als calories BOVEN target: geef suggesties om te verminderen (niet "0 calories")
+- Wees REALISTISCH: geen extreme adviezen, concrete portiegroottes
+- Als iemand al 3000 kcal heeft gehad: adviseer lichte maaltijd (300-400 kcal), niet "0 calories"
 
 Genereer 3 categorieën feedback:
 
@@ -567,22 +599,23 @@ Genereer 3 categorieën feedback:
    Types: success (groen), warning (oranje), info (blauw)
    Iconen: ✅⚠️💡🔥💪
 
-2. **VERBETERPUNTEN** (3-4 items): Concrete dingen die beter kunnen met getallen
+2. **VERBETERPUNTEN** (2-3 items): Concrete, realistische verbeteringen
    Format: 🔴 [urgent probleem] OF 🟡 [minder urgent]
+   Voorbeeld: "🟡 Probeer lunch te limiteren tot 600-700 kcal" NIET "eet 0 calories"
 
-3. **WAT GOED GAAT** (3-4 items): Positieve feedback, wat gaat al goed
+3. **WAT GOED GAAT** (2-3 items): Positieve feedback
    Format: 🟢 [succes met detail]
 
-Wees specifiek met getallen, direct, en gemotiveerd. Max 15 woorden per item."""
+Wees specifiek, realistisch, en gemotiveerd. Max 20 woorden per item."""
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "Je bent een directe fitness coach die concrete, meetbare feedback geeft."},
+                {"role": "system", "content": "Je bent een realistische fitness coach die concrete, haalbare feedback geeft. Je past je advies aan op basis van de tijdsperiode (dag/week/maand) en geeft NOOIT extreme adviezen zoals '0 calories'. Als iemand al veel gegeten heeft, adviseer je een lichte maar voedzame maaltijd van 300-500 kcal."},
                 {"role": "user", "content": context}
             ],
             temperature=0.7,
-            max_tokens=400
+            max_tokens=500
         )
         
         content = response.choices[0].message.content
