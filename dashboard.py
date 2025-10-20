@@ -2362,7 +2362,7 @@ def main():
                     else:
                         try:
                             with st.spinner("🤖 AI analyseert..."):
-                                parsed_data = groq_helper.parse_nutrition(voeding_input)
+                                parsed_data = groq_helper.parse_nutrition(voeding_input, maaltijd_type)
                                 parsed_data['maaltijd'] = maaltijd_type
                                 parsed_data['datum'] = today.strftime('%d/%m/%Y')
                                 
@@ -2400,7 +2400,7 @@ def main():
                             if fav_name.strip():
                                 try:
                                     # Parse de meal eerst
-                                    parsed = groq_helper.parse_nutrition(st.session_state['favorite_meal_input'])
+                                    parsed = groq_helper.parse_nutrition(st.session_state['favorite_meal_input'], maaltijd_type)
                                     parsed['maaltijd'] = maaltijd_type
                                     
                                     # Save favorite (use username from outer scope)
