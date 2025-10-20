@@ -680,3 +680,64 @@ Wees specifiek met getallen, direct, en gemotiveerd. Max 15 woorden per item."""
             ]
         }
 
+
+def generate_measurement_warning(vet_change, spier_change, current_nutrition, targets, name):
+    """
+    Genereer AI-powered waarschuwing wanneer vetpercentage stijgt en spiermassa daalt
+    
+    Args:
+        vet_change: Verandering in vetpercentage (positief = gestegen)
+        spier_change: Verandering in spiermassa kg (negatief = gedaald)
+        current_nutrition: Dict met huidige voeding totals
+        targets: Dict met doelen
+        name: Naam gebruiker
+        
+    Returns:
+        HTML formatted warning message
+    """
+    try:
+        client = get_groq_client()
+        
+        calories = current_nutrition.get('calorien', 0)
+        protein = current_nutrition.get('eiwit', 0)
+        
+        context = f"""⚠️ URGENT: {name} verliest spiermassa in plaats van vet!
+
+METINGEN ANALYSE:
+- Vetpercentage: +{vet_change:.1f}% (GESTEGEN)
+- Spiermassa: {spier_change:.1f} kg (GEDAALD)
+
+HUIDIGE VOEDING:
+- Calorieën: {calories:.0f}/{targets.get('calories', 2000)} kcal ({(calories/targets.get('calories', 2000)*100):.0f}%)
+- Eiwit: {protein:.0f}/{targets.get('protein', 160)}g ({(protein/targets.get('protein', 160)*100):.0f}%)
+
+Genereer een URGENTE waarschuwing in HTML format:
+
+<h3 style="margin: 0 0 15px 0;">⚠️ [Pakkende titel]</h3>
+<p style="margin: 8px 0;"><strong>Vetpercentage gestegen:</strong> +{vet_change:.1f}%</p>
+<p style="margin: 8px 0;"><strong>Spiermassa gedaald:</strong> {spier_change:.1f} kg</p>
+<p style="margin: 15px 0 0 0; opacity: 0.9;"><strong>Conclusie:</strong> [Concrete diagnose en oplossing - max 2 zinnen]</p>
+
+Wees direct, urgent maar constructief. Noem exacte cijfers en acties."""
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "Je bent een directe fitness coach die urgente maar constructieve waarschuwingen geeft in HTML format."},
+                {"role": "user", "content": context}
+            ],
+            temperature=0.7,
+            max_tokens=250
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        # Fallback to simple warning
+        return f"""
+        <h3 style="margin: 0 0 15px 0;">⚠️ Belangrijke Waarschuwing!</h3>
+        <p style="margin: 8px 0;"><strong>Vetpercentage gestegen:</strong> +{vet_change:.1f}%</p>
+        <p style="margin: 8px 0;"><strong>Spiermassa gedaald:</strong> {spier_change:.1f} kg</p>
+        <p style="margin: 15px 0 0 0; opacity: 0.9;"><strong>Conclusie:</strong> Je verliest spier in plaats van vet! Verhoog je calorieën naar {targets.get('calories', 2000)} en eiwit naar {targets.get('protein', 160)}g.</p>
+        """
+

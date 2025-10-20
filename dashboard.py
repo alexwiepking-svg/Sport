@@ -140,6 +140,21 @@ st.markdown("""
         [data-testid="stExpander"] {
             margin-bottom: 0.3rem !important;
         }
+        
+        /* Hide main title completely on mobile to save space */
+        .main-title {
+            display: none !important;
+        }
+        
+        /* Hide username subtitle on mobile */
+        .user-subtitle {
+            display: none !important;
+        }
+        
+        /* Reduce Streamlit's top toolbar space */
+        header[data-testid="stHeader"] {
+            height: 2rem !important;
+        }
     }
     
     /* Touch-friendly buttons (all screens) */
@@ -1547,24 +1562,12 @@ def main():
     # Also keep a reference in the old location for compatibility
     st.session_state.targets = st.session_state[targets_key]
     
+    # Title - wrapped in div for mobile hiding
+    st.markdown('<div class="main-title">', unsafe_allow_html=True)
     st.title("💪 Fitness Coach Dashboard")
-    st.markdown(f"**{name} - Dashboard**")
-    
-    # ============================================
-    # QUICK ACTIONS - Mobile Friendly
-    # ============================================
-    st.markdown("### ⚡ Snelle Acties")
-    
-    # Initialize quick action in session state
-    if 'quick_action' not in st.session_state:
-        st.session_state.quick_action = None
-    
-    # Quick action info - simple text instructions (only show on mobile)
-    st.markdown('<div class="quick-action-tip">', unsafe_allow_html=True)
-    st.info("💡 **Tip**: Scroll naar beneden naar de **📝 Data Invoer** tab om snel iets toe te voegen!")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    st.markdown("---")
+    st.markdown(f'<div class="user-subtitle"><strong>{name} - Dashboard</strong></div>', unsafe_allow_html=True)
     
     # Sidebar - Configuration
     with st.sidebar:
@@ -2593,20 +2596,49 @@ def main():
             
             st.markdown("<br>", unsafe_allow_html=True)
         
-        # Alerts
+        # Alerts - AI Powered measurement analysis
         metingen_df = data.get('metingen', pd.DataFrame())
         trends = analyze_measurements(metingen_df)
         
         if trends and (trends['vet_change'] > 0.5 or trends['spier_change'] < -0.5):
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2)); 
-                        padding: 18px; border-radius: 10px; border-left: 4px solid #ef4444; margin: 20px 0;">
-                <h3 style="margin: 0 0 15px 0;">⚠️ Belangrijke Waarschuwing!</h3>
-                <p style="margin: 8px 0;"><strong>Vetpercentage gestegen:</strong> +{trends['vet_change']:.1f}%</p>
-                <p style="margin: 8px 0;"><strong>Spiermassa gedaald:</strong> {trends['spier_change']:.1f} kg</p>
-                <p style="margin: 15px 0 0 0; opacity: 0.9;"><strong>Conclusie:</strong> Je verliest spier in plaats van vet! Dit komt door te weinig calorieën en/of eiwit.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            if HELPERS_AVAILABLE:
+                try:
+                    # Generate AI warning
+                    warning_msg = groq_helper.generate_measurement_warning(
+                        vet_change=trends['vet_change'],
+                        spier_change=trends['spier_change'],
+                        current_nutrition=totals,
+                        targets=targets,
+                        name=name
+                    )
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2)); 
+                                padding: 18px; border-radius: 10px; border-left: 4px solid #ef4444; margin: 20px 0;">
+                        {warning_msg}
+                    </div>
+                    """, unsafe_allow_html=True)
+                except:
+                    # Fallback to static
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2)); 
+                                padding: 18px; border-radius: 10px; border-left: 4px solid #ef4444; margin: 20px 0;">
+                        <h3 style="margin: 0 0 15px 0;">⚠️ Belangrijke Waarschuwing!</h3>
+                        <p style="margin: 8px 0;"><strong>Vetpercentage gestegen:</strong> +{trends['vet_change']:.1f}%</p>
+                        <p style="margin: 8px 0;"><strong>Spiermassa gedaald:</strong> {trends['spier_change']:.1f} kg</p>
+                        <p style="margin: 15px 0 0 0; opacity: 0.9;"><strong>Conclusie:</strong> Je verliest spier in plaats van vet! Dit komt door te weinig calorieën en/of eiwit.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                # Static fallback
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2)); 
+                            padding: 18px; border-radius: 10px; border-left: 4px solid #ef4444; margin: 20px 0;">
+                    <h3 style="margin: 0 0 15px 0;">⚠️ Belangrijke Waarschuwing!</h3>
+                    <p style="margin: 8px 0;"><strong>Vetpercentage gestegen:</strong> +{trends['vet_change']:.1f}%</p>
+                    <p style="margin: 8px 0;"><strong>Spiermassa gedaald:</strong> {trends['spier_change']:.1f} kg</p>
+                    <p style="margin: 15px 0 0 0; opacity: 0.9;"><strong>Conclusie:</strong> Je verliest spier in plaats van vet! Dit komt door te weinig calorieën en/of eiwit.</p>
+                </div>
+                """, unsafe_allow_html=True)
         
         # Action items - only in detailed mode - AI Generated
         if st.session_state.focus_mode == "detailed":
