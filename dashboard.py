@@ -1186,6 +1186,34 @@ def calculate_body_projections(metingen_df, weeks_ahead=4):
             'message': f'Fout bij berekenen projecties: {str(e)}'
         }
 
+def format_date_dutch(date_obj):
+    """
+    Format date to Dutch style: '21 oktober 2024' or '21 okt' for short
+    """
+    months = {
+        1: 'januari', 2: 'februari', 3: 'maart', 4: 'april',
+        5: 'mei', 6: 'juni', 7: 'juli', 8: 'augustus',
+        9: 'september', 10: 'oktober', 11: 'november', 12: 'december'
+    }
+    months_short = {
+        1: 'jan', 2: 'feb', 3: 'mrt', 4: 'apr',
+        5: 'mei', 6: 'jun', 7: 'jul', 8: 'aug',
+        9: 'sep', 10: 'okt', 11: 'nov', 12: 'dec'
+    }
+    day = date_obj.day
+    month = months[date_obj.month]
+    year = date_obj.year
+    return f"{day} {month} {year}"
+
+def format_date_dutch_short(date_obj):
+    """Short Dutch date format: '21 okt'"""
+    months_short = {
+        1: 'jan', 2: 'feb', 3: 'mrt', 4: 'apr',
+        5: 'mei', 6: 'jun', 7: 'jul', 8: 'aug',
+        9: 'sep', 10: 'okt', 11: 'nov', 12: 'dec'
+    }
+    return f"{date_obj.day} {months_short[date_obj.month]}"
+
 def calculate_bmr(weight_kg, height_cm=180, age=30, gender='male'):
     """
     Calculate Basal Metabolic Rate using Mifflin-St Jeor Equation
@@ -1643,12 +1671,12 @@ def main():
     # Also keep a reference in the old location for compatibility
     st.session_state.targets = st.session_state[targets_key]
     
-    # Title - wrapped in div for mobile hiding
-    st.markdown('<div class="main-title">', unsafe_allow_html=True)
-    st.title("💪 Fitness Coach Dashboard")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown(f'<div class="user-subtitle"><strong>{name} - Dashboard</strong></div>', unsafe_allow_html=True)
+    # Compact title - no subtitle to save space
+    st.markdown(f"""
+    <div style="margin-bottom: 10px;">
+        <h1 style="font-size: 1.8rem; margin: 0; padding: 0;">💪 {name}'s Dashboard</h1>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Sidebar - Configuration
     with st.sidebar:
@@ -1712,7 +1740,7 @@ def main():
             
             start_date = st.session_state.current_date
             end_date = st.session_state.current_date
-            date_range_text = st.session_state.current_date.strftime("%d/%m/%Y")
+            date_range_text = format_date_dutch(st.session_state.current_date)
         
         elif view_mode == "📊 Week":
             # Get start of current week (Monday)
@@ -1747,7 +1775,7 @@ def main():
             
             start_date = st.session_state.current_week - timedelta(days=st.session_state.current_week.weekday())
             end_date = start_date + timedelta(days=6)
-            date_range_text = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
+            date_range_text = f"{format_date_dutch_short(start_date)} - {format_date_dutch_short(end_date)} {end_date.year}"
         
         elif view_mode == "📈 Maand":
             if 'current_month' not in st.session_state:
@@ -1795,8 +1823,13 @@ def main():
             else:
                 end_date = start_date.replace(month=start_date.month + 1, day=1) - timedelta(days=1)
             
-            # Consistent date format: dd/mm - dd/mm/yyyy
-            date_range_text = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
+            # Consistent date format with Dutch month names
+            months = {
+                1: 'januari', 2: 'februari', 3: 'maart', 4: 'april',
+                5: 'mei', 6: 'juni', 7: 'juli', 8: 'augustus',
+                9: 'september', 10: 'oktober', 11: 'november', 12: 'december'
+            }
+            date_range_text = f"{months[start_date.month].capitalize()} {start_date.year}"
         
         else:  # Aangepast
             col1, col2 = st.columns(2)
@@ -1804,7 +1837,7 @@ def main():
                 start_date = st.date_input("Van", value=today - timedelta(days=7), max_value=today)
             with col2:
                 end_date = st.date_input("Tot", value=today, max_value=today)
-            date_range_text = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
+            date_range_text = f"{format_date_dutch_short(start_date)} - {format_date_dutch_short(end_date)} {end_date.year}"
         
         st.info(f"📊 **{date_range_text}**")
         
@@ -1968,18 +2001,12 @@ def main():
                 st.markdown(f"• {goal}")
     
     # ============================================
-    # AI DAGCOACH (Hidden on mobile to reduce clutter)
+    # AI DAGCOACH - In expander to save space
     # ============================================
-    st.markdown('<div class="ai-coach-section">', unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown("### 🤖 AI Dagcoach")
-    
-    col_coach1, col_coach2 = st.columns([3, 1])
-    
-    with col_coach1:
+    with st.expander("🤖 AI Dagcoach - Klik voor persoonlijk advies", expanded=False):
         st.markdown("**Krijg een persoonlijk advies voor de rest van je dag** 🎯")
-    
-    with col_coach2:
+        
         if st.button("🔮 Genereer Advies", use_container_width=True, type="secondary"):
             with st.spinner("🤖 AI analyseert je dag..."):
                 try:
@@ -2108,8 +2135,6 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Fout bij genereren rapport: {str(e)}")
     
-    st.markdown('</div>', unsafe_allow_html=True)  # Close AI coach section
-    
     # Remove old quick action messages - simplified now
     st.markdown("---")
     
@@ -2136,7 +2161,7 @@ def main():
     with tab0:
         st.title("🎯 Vandaag")
         today = datetime.now()
-        st.markdown(f"<p style='font-size: 14px; opacity: 0.7; margin-top: -10px; margin-bottom: 20px;'>{today.strftime('%A %d %B %Y')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size: 14px; opacity: 0.7; margin-top: -10px; margin-bottom: 20px;'>{format_date_dutch(today)}</p>", unsafe_allow_html=True)
         
         # Get today's data for real-time progress
         today_str = today.strftime('%d/%m/%Y')
