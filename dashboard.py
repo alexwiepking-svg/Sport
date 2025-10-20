@@ -2041,6 +2041,9 @@ def main():
     # Get targets for use in tabs
     targets = st.session_state.targets
     
+    # Get current username for use in tabs (define once at function level)
+    current_username = st.session_state.get('username', 'alex')
+    
     # TAB 0: VANDAAG (Quick Add Dashboard)
     with tab0:
         st.title("🎯 Vandaag")
@@ -2253,8 +2256,7 @@ def main():
         col_left, col_right = st.columns([2, 1])
         
         with col_left:
-            # Get username once at top of scope to avoid UnboundLocalError
-            current_username = st.session_state.get('username', 'alex')
+            # Use function-level current_username (defined at top of main())
             user_sheet_id = st.session_state.get('user_sheet_id')
             
             # VOEDING CARD
