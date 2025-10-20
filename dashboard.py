@@ -2043,6 +2043,8 @@ def main():
     
     # Get current username for use in tabs (define once at function level)
     current_username = st.session_state.get('username', 'alex')
+    # DEBUG: Verify code version deployed (commit ef4871e)
+    print(f"DEBUG: current_username defined = '{current_username}' (commit ef4871e)")
     
     # TAB 0: VANDAAG (Quick Add Dashboard)
     with tab0:
