@@ -34,11 +34,11 @@ Bewerk je `.env` bestand:
 
 ```bash
 # Groq API Key
-GROQ_API_KEY=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
+GROQ_API_KEY=your-groq-api-key-here
 
 # Google Sheets - Per User
-SHEET_ID_ALEX=1nWiAZCG3ZKvVOX50ZlW9z3elubHDERpCFXpcDYxJUE8
-SHEET_ID_PARTNER=NIEUWE_SHEET_ID_HIER_PLAKKEN
+SHEET_ID_ALEX=your-alex-sheet-id-here
+SHEET_ID_PARTNER=your-partner-sheet-id-here
 GOOGLE_CREDENTIALS_PATH=credentials.json
 ```
 
@@ -76,11 +76,11 @@ Bij deployment naar Streamlit Cloud, voeg toe aan Secrets:
 
 ```toml
 # Groq API
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "your-groq-api-key-here"
 
 # Google Sheets - Per User
-SHEET_ID_ALEX = "1nWiAZCG3ZKvVOX50ZlW9z3elubHDERpCFXpcDYxJUE8"
-SHEET_ID_PARTNER = "TAMARA_SHEET_ID_HIER"
+SHEET_ID_ALEX = "your-alex-sheet-id-here"
+SHEET_ID_PARTNER = "your-partner-sheet-id-here"
 
 # Google Service Account (zelfde voor beide users)
 [gcp_service_account]

@@ -57,10 +57,10 @@ Klik "Advanced settings" → "Secrets" en plak:
 
 ```toml
 # Groq API
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "your-groq-api-key-here"
 
 # Google Sheets
-SHEET_ID = "1nWiAZCG3ZKvVOX50ZlW9z3elubHDERpCFXpcDYxJUE8"
+SHEET_ID = "your-google-sheet-id-here"
 
 # Google Service Account
 # Open credentials.json en plak HELE inhoud hieronder als TOML format:

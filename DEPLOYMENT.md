@@ -43,10 +43,10 @@ Klik op "Advanced settings" → "Secrets" en voeg toe:
 
 ```toml
 # Groq API
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "your-groq-api-key-here"
 
 # Google Sheets
-SHEET_ID = "1nWiAZCG3ZKvVOX50ZlW9z3elubHDERpCFXpcDYxJUE8"
+SHEET_ID = "your-google-sheet-id-here"
 
 # Google Service Account (hele JSON hier plakken)
 [gcp_service_account]
