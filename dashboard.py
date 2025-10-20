@@ -1535,7 +1535,6 @@ def main():
     if targets_key not in st.session_state:
         # Try to load goals from Google Sheets first
         try:
-            import sheets_helper
             loaded_goals = sheets_helper.load_goals(username, user_sheet_id)
             if loaded_goals:
                 st.session_state[targets_key] = loaded_goals
@@ -1788,7 +1787,6 @@ def main():
                 
                 # Save to Google Sheets for persistence
                 try:
-                    import sheets_helper
                     sheets_helper.save_goals(username, new_goals, user_sheet_id)
                     st.success(f"✅ Doelen opgeslagen voor {name} (persistent opgeslagen in Google Sheets)!")
                 except Exception as e:
