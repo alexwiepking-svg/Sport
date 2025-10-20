@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import time
 import gspread
 from google.oauth2.service_account import Credentials
 import plotly.io as pio
@@ -2026,8 +2027,9 @@ def main():
     # Remove old quick action messages - simplified now
     st.markdown("---")
     
-    # Tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    # Tabs - Vandaag is nu eerste tab (default)
+    tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "🎯 Vandaag",
         "📊 Overzicht", 
         "🍽️ Voeding", 
         "❤️ Cardio", 
@@ -2039,14 +2041,454 @@ def main():
     # Get targets for use in tabs
     targets = st.session_state.targets
     
-    # TAB 1: OVERZICHT
+    # TAB 0: VANDAAG (Quick Add Dashboard)
+    with tab0:
+        st.title("🎯 Vandaag")
+        today = datetime.now()
+        st.markdown(f"<p style='font-size: 14px; opacity: 0.7; margin-top: -10px; margin-bottom: 20px;'>{today.strftime('%A %d %B %Y')}</p>", unsafe_allow_html=True)
+        
+        # Get today's data for real-time progress
+        today_str = today.strftime('%d/%m/%Y')
+        today_str_dash = today.strftime('%d-%m-%Y')
+        
+        nutrition_df = data.get('voeding', pd.DataFrame())
+        gewicht_df = data.get('gewicht', pd.DataFrame())
+        stappen_df = data.get('stappen', pd.DataFrame())
+        
+        # Calculate today's totals
+        current_nutrition = calculate_nutrition_totals(nutrition_df, today_str)
+        if sum(current_nutrition.values()) == 0:
+            current_nutrition = calculate_nutrition_totals(nutrition_df, today_str_dash)
+        
+        # SECTION 1: REAL-TIME PROGRESS NAAR TARGETS
+        st.markdown("### 📊 Je Voortgang Vandaag")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            cal_progress_pct = current_nutrition['calorien']/targets['calories']*100 if targets['calories'] > 0 else 0
+            is_over_cal = cal_progress_pct > 110
+            
+            if cal_progress_pct <= 100:
+                cal_green = cal_progress_pct
+                cal_red = 0
+                cal_gray = 100 - cal_progress_pct
+            else:
+                cal_green = (100 / cal_progress_pct) * 100
+                cal_red = 100 - cal_green
+                cal_gray = 0
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(220, 38, 38, 0.1)); 
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
+                        text-align: center;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🔥 Calorieën</div>
+                <div style="font-size: 26px; font-weight: bold; color: #fb923c; margin: 5px 0;">
+                    {current_nutrition['calorien']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['calories']}</span>
+                </div>
+                <div style="font-size: 11px; margin-bottom: 8px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_cal else '#22c55e'};">{cal_progress_pct:.0f}%</span> 
+                    {'⚠️ Over' if is_over_cal else '✓'}
+                </div>
+                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                    <div style="height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); width: {cal_green:.1f}%; flex-shrink: 0;"></div>
+                    {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {cal_red:.1f}%; flex-shrink: 0;"></div>' if cal_red > 0 else ''}
+                    {f'<div style="height: 100%; background: #3a3a3a; width: {cal_gray:.1f}%; flex-shrink: 0;"></div>' if cal_gray > 0 else ''}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            prot_progress_pct = current_nutrition['eiwit']/targets['protein']*100 if targets['protein'] > 0 else 0
+            is_over_prot = prot_progress_pct > 130
+            
+            if prot_progress_pct <= 100:
+                prot_green = prot_progress_pct
+                prot_red = 0
+                prot_gray = 100 - prot_progress_pct
+            else:
+                prot_green = (100 / prot_progress_pct) * 100
+                prot_red = 100 - prot_green
+                prot_gray = 0
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.1)); 
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
+                        text-align: center;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">💪 Eiwit</div>
+                <div style="font-size: 26px; font-weight: bold; color: #60a5fa; margin: 5px 0;">
+                    {current_nutrition['eiwit']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['protein']}</span>
+                </div>
+                <div style="font-size: 11px; margin-bottom: 8px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_prot else '#22c55e'};">{prot_progress_pct:.0f}%</span> 
+                    {'⚠️ Over' if is_over_prot else '✓'}
+                </div>
+                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                    <div style="height: 100%; background: linear-gradient(90deg, #60a5fa, #3b82f6); width: {prot_green:.1f}%; flex-shrink: 0;"></div>
+                    {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {prot_red:.1f}%; flex-shrink: 0;"></div>' if prot_red > 0 else ''}
+                    {f'<div style="height: 100%; background: #3a3a3a; width: {prot_gray:.1f}%; flex-shrink: 0;"></div>' if prot_gray > 0 else ''}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            carbs_progress_pct = current_nutrition['koolhydraten']/targets['carbs']*100 if targets['carbs'] > 0 else 0
+            is_over_carbs = carbs_progress_pct > 110
+            
+            if carbs_progress_pct <= 100:
+                carbs_green = carbs_progress_pct
+                carbs_red = 0
+                carbs_gray = 100 - carbs_progress_pct
+            else:
+                carbs_green = (100 / carbs_progress_pct) * 100
+                carbs_red = 100 - carbs_green
+                carbs_gray = 0
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1)); 
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);
+                        text-align: center;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🌾 Koolhydraten</div>
+                <div style="font-size: 26px; font-weight: bold; color: #34d399; margin: 5px 0;">
+                    {current_nutrition['koolhydraten']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['carbs']}</span>
+                </div>
+                <div style="font-size: 11px; margin-bottom: 8px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_carbs else '#22c55e'};">{carbs_progress_pct:.0f}%</span> 
+                    {'⚠️ Over' if is_over_carbs else '✓'}
+                </div>
+                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                    <div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {carbs_green:.1f}%; flex-shrink: 0;"></div>
+                    {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {carbs_red:.1f}%; flex-shrink: 0;"></div>' if carbs_red > 0 else ''}
+                    {f'<div style="height: 100%; background: #3a3a3a; width: {carbs_gray:.1f}%; flex-shrink: 0;"></div>' if carbs_gray > 0 else ''}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            fats_progress_pct = current_nutrition['vetten']/targets['fats']*100 if targets['fats'] > 0 else 0
+            is_over_fats = fats_progress_pct > 110
+            
+            if fats_progress_pct <= 100:
+                fats_green = fats_progress_pct
+                fats_red = 0
+                fats_gray = 100 - fats_progress_pct
+            else:
+                fats_green = (100 / fats_progress_pct) * 100
+                fats_red = 100 - fats_green
+                fats_gray = 0
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.1)); 
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);
+                        text-align: center;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🥑 Vetten</div>
+                <div style="font-size: 26px; font-weight: bold; color: #a78bfa; margin: 5px 0;">
+                    {current_nutrition['vetten']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['fats']}</span>
+                </div>
+                <div style="font-size: 11px; margin-bottom: 8px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_fats else '#22c55e'};">{fats_progress_pct:.0f}%</span> 
+                    {'⚠️ Over' if is_over_fats else '✓'}
+                </div>
+                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                    <div style="height: 100%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); width: {fats_green:.1f}%; flex-shrink: 0;"></div>
+                    {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {fats_red:.1f}%; flex-shrink: 0;"></div>' if fats_red > 0 else ''}
+                    {f'<div style="height: 100%; background: #3a3a3a; width: {fats_gray:.1f}%; flex-shrink: 0;"></div>' if fats_gray > 0 else ''}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # SECTION 2: QUICK ACTIONS ROW
+        st.markdown("### ⚡ Snelle Acties")
+        
+        col_action1, col_action2 = st.columns(2)
+        
+        with col_action1:
+            if st.button("🔄 Kopieer Voeding van Gisteren", use_container_width=True, type="secondary"):
+                yesterday = today - timedelta(days=1)
+                yesterday_str = yesterday.strftime('%d/%m/%Y')
+                yesterday_str_dash = yesterday.strftime('%d-%m-%Y')
+                
+                if not nutrition_df.empty:
+                    yesterday_meals = nutrition_df[nutrition_df['datum'].isin([yesterday_str, yesterday_str_dash])]
+                    
+                    if not yesterday_meals.empty:
+                        try:
+                            copied_count = 0
+                            for _, meal in yesterday_meals.iterrows():
+                                # Kopieer meal naar vandaag
+                                new_meal = {
+                                    'maaltijd': meal.get('maaltijd', 'Tussendoor'),
+                                    'omschrijving': meal.get('omschrijving', ''),
+                                    'calorien': meal.get('calorien', 0),
+                                    'eiwit': meal.get('eiwit', 0),
+                                    'koolhydraten': meal.get('koolhydraten', 0),
+                                    'vetten': meal.get('vetten', 0),
+                                    'datum': today.strftime('%d/%m/%Y')
+                                }
+                                sheets_helper.write_to_voeding(new_meal, sheet_id=user_sheet_id)
+                                copied_count += 1
+                            
+                            st.success(f"✅ {copied_count} maaltijden gekopieerd van gisteren!")
+                            st.cache_data.clear()
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Fout bij kopiëren: {str(e)}")
+                    else:
+                        st.warning(f"📭 Geen maaltijden gevonden van {yesterday.strftime('%d %b')}")
+                else:
+                    st.warning("📝 Geen voeding data beschikbaar")
+        
+        with col_action2:
+            if st.button("🗑️ Wis Vandaag (Reset)", use_container_width=True):
+                st.warning("⚠️ Deze functie is nog niet geïmplementeerd")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # SECTION 3: QUICK ADD CARDS
+        st.markdown("### ⚡ Snelle Invoer")
+        
+        col_left, col_right = st.columns([2, 1])
+        
+        with col_left:
+            # VOEDING CARD
+            st.markdown("""
+            <div style="background: rgba(249, 115, 22, 0.15); padding: 15px; border-radius: 10px; 
+                        border-left: 4px solid #fb923c; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0;">🍽️ Voeding Toevoegen</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            maaltijd_type = st.selectbox(
+                "Maaltijd type",
+                ["Ontbijt", "Lunch", "Avondeten", "Tussendoor"],
+                key="quick_voeding_maaltijd"
+            )
+            
+            # Load favorites en recente maaltijden
+            user_sheet_id = st.session_state.get('user_sheet_id')
+            favorites = sheets_helper.load_favorite_meals(username, user_sheet_id)
+            recent_meals = sheets_helper.get_recent_meals(username, user_sheet_id, limit=3)
+            
+            # Toon quick-select buttons als er favorieten/recente items zijn
+            if favorites or recent_meals:
+                st.markdown("**⚡ Snel invoeren:**")
+                
+                # Combine favorites en recent (max 6 total)
+                quick_options = []
+                for fav in favorites[:3]:
+                    quick_options.append(('⭐ ' + fav['naam'], fav['omschrijving']))
+                for meal in recent_meals[:3]:
+                    if len(quick_options) < 6:
+                        quick_options.append(('🕐 ' + meal[:30], meal))
+                
+                # Create button grid
+                cols = st.columns(min(3, len(quick_options)))
+                for i, (label, value) in enumerate(quick_options):
+                    col_idx = i % 3
+                    with cols[col_idx]:
+                        if st.button(label, key=f"quick_meal_{i}", use_container_width=True):
+                            st.session_state['quick_voeding_prefill'] = value
+                            st.rerun()
+            
+            # Check if we need to prefill
+            prefill_value = st.session_state.get('quick_voeding_prefill', '')
+            if prefill_value:
+                st.session_state['quick_voeding_prefill'] = ''  # Clear after use
+            
+            voeding_input = st.text_area(
+                "Wat heb je gegeten?",
+                placeholder="Bijv: 250g kwark, 1 banaan, 2 lepels lijnzaad",
+                height=80,
+                value=prefill_value,
+                key="quick_voeding_input"
+            )
+            
+            col_btn1, col_btn2 = st.columns([3, 1])
+            with col_btn1:
+                if st.button("➕ Toevoegen", key="quick_voeding_submit", type="primary", use_container_width=True):
+                    if not voeding_input.strip():
+                        st.error("Vul eerst in wat je hebt gegeten!")
+                    else:
+                        try:
+                            with st.spinner("🤖 AI analyseert..."):
+                                parsed_data = groq_helper.parse_nutrition(voeding_input)
+                                parsed_data['maaltijd'] = maaltijd_type
+                                parsed_data['datum'] = today.strftime('%d/%m/%Y')
+                                
+                                sheets_helper.write_to_voeding(parsed_data, sheet_id=user_sheet_id)
+                                
+                                st.success(f"✅ {maaltijd_type} toegevoegd: {parsed_data['calorien']:.0f} kcal")
+                                st.cache_data.clear()
+                                time.sleep(0.5)
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Fout: {str(e)}")
+            
+            with col_btn2:
+                if st.button("⭐", key="quick_voeding_favorite", use_container_width=True):
+                    if not voeding_input.strip():
+                        st.warning("Vul eerst een maaltijd in!")
+                    else:
+                        # Open dialog to save favorite
+                        st.session_state['saving_favorite'] = True
+                        st.session_state['favorite_meal_input'] = voeding_input
+                        st.rerun()
+            
+            # Favoriet opslaan dialog
+            if st.session_state.get('saving_favorite', False):
+                with st.expander("⭐ Favoriet Opslaan", expanded=True):
+                    fav_name = st.text_input(
+                        "Naam voor deze favoriet:",
+                        placeholder="Bijv: Standaard Ontbijt",
+                        key="favorite_name_input"
+                    )
+                    
+                    col_save, col_cancel = st.columns(2)
+                    with col_save:
+                        if st.button("💾 Opslaan", use_container_width=True):
+                            if fav_name.strip():
+                                try:
+                                    # Parse de meal eerst
+                                    parsed = groq_helper.parse_nutrition(st.session_state['favorite_meal_input'])
+                                    parsed['maaltijd'] = maaltijd_type
+                                    
+                                    # Save favorite
+                                    success = sheets_helper.save_favorite_meal(
+                                        username, 
+                                        fav_name, 
+                                        parsed, 
+                                        user_sheet_id
+                                    )
+                                    
+                                    if success:
+                                        st.success(f"✅ '{fav_name}' opgeslagen als favoriet!")
+                                        st.session_state['saving_favorite'] = False
+                                        time.sleep(1)
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ Kon favoriet niet opslaan")
+                                except Exception as e:
+                                    st.error(f"❌ Fout: {str(e)}")
+                            else:
+                                st.warning("Vul een naam in!")
+                    
+                    with col_cancel:
+                        if st.button("❌ Annuleren", use_container_width=True):
+                            st.session_state['saving_favorite'] = False
+                            st.rerun()
+
+        
+        with col_right:
+            # GEWICHT CARD
+            st.markdown("""
+            <div style="background: rgba(59, 130, 246, 0.15); padding: 15px; border-radius: 10px; 
+                        border-left: 4px solid #60a5fa; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0;">⚖️ Gewicht</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            gewicht_input = st.number_input(
+                "Gewicht (kg)",
+                min_value=40.0,
+                max_value=200.0,
+                value=0.0,
+                step=0.1,
+                key="quick_gewicht_input"
+            )
+            
+            if st.button("➕ Log Gewicht", key="quick_gewicht_submit", type="primary", use_container_width=True):
+                if gewicht_input == 0.0:
+                    st.error("Vul eerst je gewicht in!")
+                else:
+                    try:
+                        with st.spinner("💾 Opslaan..."):
+                            user_sheet_id = st.session_state.get('user_sheet_id')
+                            sheets_helper.write_to_gewicht(gewicht_input, sheet_id=user_sheet_id)
+                            st.success(f"✅ Gewicht gelogd: {gewicht_input:.1f}kg")
+                            st.cache_data.clear()
+                            time.sleep(0.5)
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Fout: {str(e)}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # STAPPEN CARD
+            st.markdown("""
+            <div style="background: rgba(34, 197, 94, 0.15); padding: 15px; border-radius: 10px; 
+                        border-left: 4px solid #22c55e; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0;">👟 Stappen</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            stappen_input = st.number_input(
+                "Aantal stappen",
+                min_value=0,
+                max_value=50000,
+                value=0,
+                step=100,
+                key="quick_stappen_input"
+            )
+            
+            if st.button("➕ Log Stappen", key="quick_stappen_submit", type="primary", use_container_width=True):
+                if stappen_input == 0:
+                    st.error("Vul eerst je stappen in!")
+                else:
+                    try:
+                        with st.spinner("💾 Opslaan..."):
+                            user_sheet_id = st.session_state.get('user_sheet_id')
+                            sheets_helper.write_to_stappen(stappen_input, "nee", sheet_id=user_sheet_id)
+                            st.success(f"✅ Stappen gelogd: {stappen_input:,}")
+                            st.cache_data.clear()
+                            time.sleep(0.5)
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Fout: {str(e)}")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # SECTION 3: VANDAAG'S MEALS OVERVIEW
+        st.markdown("### 📋 Gegeten Vandaag")
+        
+        if not nutrition_df.empty:
+            today_meals = nutrition_df[nutrition_df['datum'].isin([today_str, today_str_dash])]
+            
+            if not today_meals.empty:
+                for _, meal in today_meals.iterrows():
+                    st.markdown(f"""
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 12px; border-radius: 8px; 
+                                margin-bottom: 8px; border-left: 3px solid #8b5cf6;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>{meal.get('maaltijd', 'Maaltijd')}</strong> - {meal.get('omschrijving', 'Geen beschrijving')}
+                            </div>
+                            <div style="font-weight: bold; color: #fb923c;">
+                                {meal.get('calorien', 0):.0f} kcal
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 15px; font-size: 13px; opacity: 0.8; margin-top: 5px;">
+                            <span>💪 {meal.get('eiwit', 0):.0f}g</span>
+                            <span>🌾 {meal.get('koolhydraten', 0):.0f}g</span>
+                            <span>🥑 {meal.get('vetten', 0):.0f}g</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("⏰ Nog geen maaltijden gelogd vandaag. Begin met invoeren!")
+        else:
+            st.info("📝 Geen voeding data beschikbaar.")
+    
+    # TAB 1: OVERZICHT (Analytics-only, geen dagelijkse input)
     with tab1:
         # Show period header
+        st.title("📊 Overzicht & Analyse")
         st.markdown(f"""
-        <div style="background: rgba(139, 92, 246, 0.2); padding: 15px; border-radius: 10px; 
-                    border-left: 4px solid #8b5cf6; margin-bottom: 20px;">
-            <h3 style="margin: 0;">📊 Overzicht: {date_range_text}</h3>
-        </div>
+        <p style='font-size: 14px; opacity: 0.7; margin-top: -10px; margin-bottom: 20px;'>
+            Periode: {date_range_text}
+        </p>
         """, unsafe_allow_html=True)
         
         nutrition_df = data.get('voeding', pd.DataFrame())

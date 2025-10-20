@@ -378,3 +378,159 @@ def test_connection() -> Dict[str, Any]:
             'success': False,
             'message': f'❌ Verbinding mislukt: {error_msg}'
         }
+
+def save_favorite_meal(username: str, meal_name: str, meal_data: dict, sheet_id: str = None):
+    """
+    Sla een favoriet maaltijd op voor een gebruiker
+    
+    Args:
+        username: Gebruikersnaam
+        meal_name: Naam voor de favoriet (bijv. "Standaard Ontbijt")
+        meal_data: Dict met parsed voeding data (omschrijving, calorien, eiwit, koolhydraten, vetten)
+        sheet_id: Google Sheet ID
+    
+    Returns:
+        bool: True if successful
+    """
+    try:
+        spreadsheet = get_spreadsheet(sheet_id)
+        
+        # Zoek of maak favorieten sheet
+        try:
+            sheet = spreadsheet.worksheet('favorieten')
+        except:
+            # Sheet bestaat niet, maak hem aan
+            sheet = spreadsheet.add_worksheet(title='favorieten', rows=100, cols=10)
+            headers = ['gebruiker', 'naam', 'omschrijving', 'calorien', 'eiwit', 'koolhydraten', 'vetten', 'maaltijd_type', 'created']
+            sheet.append_row(headers)
+        
+        # Check of deze naam al bestaat voor gebruiker
+        try:
+            all_values = sheet.get_all_values()
+            for i, row in enumerate(all_values[1:], start=2):  # Skip header
+                if row[0] == username and row[1] == meal_name:
+                    # Update bestaande favoriet
+                    new_row = [
+                        username,
+                        meal_name,
+                        meal_data.get('omschrijving', ''),
+                        meal_data.get('calorien', 0),
+                        meal_data.get('eiwit', 0),
+                        meal_data.get('koolhydraten', 0),
+                        meal_data.get('vetten', 0),
+                        meal_data.get('maaltijd', 'Tussendoor'),
+                        datetime.now().strftime('%d/%m/%Y %H:%M')
+                    ]
+                    sheet.delete_rows(i)
+                    sheet.insert_row(new_row, i)
+                    return True
+        except:
+            pass
+        
+        # Voeg nieuwe favoriet toe
+        row = [
+            username,
+            meal_name,
+            meal_data.get('omschrijving', ''),
+            meal_data.get('calorien', 0),
+            meal_data.get('eiwit', 0),
+            meal_data.get('koolhydraten', 0),
+            meal_data.get('vetten', 0),
+            meal_data.get('maaltijd', 'Tussendoor'),
+            datetime.now().strftime('%d/%m/%Y %H:%M')
+        ]
+        sheet.append_row(row, value_input_option='USER_ENTERED')
+        return True
+        
+    except Exception as e:
+        print(f"Error saving favorite: {e}")
+        return False
+
+def load_favorite_meals(username: str, sheet_id: str = None):
+    """
+    Laad alle favoriete maaltijden voor een gebruiker
+    
+    Args:
+        username: Gebruikersnaam
+        sheet_id: Google Sheet ID
+    
+    Returns:
+        list: List of dicts met favorite meals, of lege list
+    """
+    try:
+        spreadsheet = get_spreadsheet(sheet_id)
+        
+        try:
+            sheet = spreadsheet.worksheet('favorieten')
+        except:
+            return []
+        
+        all_values = sheet.get_all_values()
+        if len(all_values) <= 1:  # Only headers or empty
+            return []
+        
+        headers = all_values[0]
+        favorites = []
+        
+        for row in all_values[1:]:
+            if row[0] == username:  # Match username
+                favorite = {
+                    'naam': row[1],
+                    'omschrijving': row[2],
+                    'calorien': float(row[3]) if row[3] else 0,
+                    'eiwit': float(row[4]) if row[4] else 0,
+                    'koolhydraten': float(row[5]) if row[5] else 0,
+                    'vetten': float(row[6]) if row[6] else 0,
+                    'maaltijd': row[7] if len(row) > 7 else 'Tussendoor'
+                }
+                favorites.append(favorite)
+        
+        return favorites
+        
+    except Exception as e:
+        print(f"Error loading favorites: {e}")
+        return []
+
+def get_recent_meals(username: str, sheet_id: str = None, limit: int = 5):
+    """
+    Haal de meest recente unieke maaltijden op voor quick-select
+    
+    Args:
+        username: Gebruikersnaam
+        sheet_id: Google Sheet ID
+        limit: Aantal recente items
+    
+    Returns:
+        list: List of unique meal descriptions
+    """
+    try:
+        spreadsheet = get_spreadsheet(sheet_id)
+        
+        try:
+            sheet = spreadsheet.worksheet('voeding')
+        except:
+            return []
+        
+        all_values = sheet.get_all_values()
+        if len(all_values) <= 1:
+            return []
+        
+        # Get most recent entries (reverse order)
+        recent = []
+        seen = set()
+        
+        for row in reversed(all_values[1:]):
+            omschrijving = row[2] if len(row) > 2 else None  # Column C
+            if omschrijving and omschrijving not in seen:
+                recent.append(omschrijving)
+                seen.add(omschrijving)
+                
+                if len(recent) >= limit:
+                    break
+        
+        return recent
+        
+    except Exception as e:
+        print(f"Error getting recent meals: {e}")
+        return []
+
