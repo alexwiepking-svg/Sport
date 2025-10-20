@@ -2590,6 +2590,10 @@ def main():
         # Calculate period statistics
         period_stats = calculate_period_stats(nutrition_df, activities_df, start_date, end_date)
         
+        # Determine labels based on view mode
+        is_daily_view = (view_mode == "📅 Dag")
+        metric_context = "vandaag" if is_daily_view else "gemiddeld/dag"
+        
         # For single day view, show daily data
         if view_mode == "📅 Dag":
             today_str = start_date.strftime("%d/%m/%Y")
@@ -2661,6 +2665,9 @@ def main():
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
                     / {targets['calories']} doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{cal_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
                 </div>
+                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
+                    ({metric_context})
+                </div>
                 <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); width: {cal_green_width:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {cal_red_width:.1f}%; flex-shrink: 0;"></div>' if cal_red_width > 0 else ''}
@@ -2682,7 +2689,6 @@ def main():
                 # Boven 100%: blauw = (100/totaal)*100, rood = rest
                 protein_green_width = (100 / protein_progress_pct) * 100
                 protein_red_width = 100 - protein_green_width
-                protein_gray_width = 0  # Geen grijze balk nodigdth
                 protein_gray_width = 0  # Geen grijs nodig
             
             st.markdown(f"""
@@ -2693,6 +2699,9 @@ def main():
                 <div style="font-size: 30px; font-weight: bold; color: #60a5fa; margin: 8px 0;">{totals['eiwit']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
                     / {targets['protein']}g doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{protein_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
+                </div>
+                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
+                    ({metric_context})
                 </div>
                 <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #60a5fa, #3b82f6); width: {protein_green_width:.1f}%; flex-shrink: 0;"></div>
@@ -2724,6 +2733,9 @@ def main():
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
                     / {targets['carbs']}g doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{carbs_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
                 </div>
+                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
+                    ({metric_context})
+                </div>
                 <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {carbs_green_width:.1f}%; flex-shrink: 0;"></div>' if carbs_green_width > 0 else ''}
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {carbs_red_width:.1f}%; flex-shrink: 0;"></div>' if carbs_red_width > 0 else ''}
@@ -2754,6 +2766,9 @@ def main():
                 <div style="font-size: 30px; font-weight: bold; color: #a78bfa; margin: 8px 0;">{totals['vetten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
                     / {targets['fats']}g doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{fats_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
+                </div>
+                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
+                    ({metric_context})
                 </div>
                 <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); width: {fats_green_width:.1f}%; flex-shrink: 0;"></div>
