@@ -2399,13 +2399,13 @@ def main():
                 "Gewicht (kg)",
                 min_value=40.0,
                 max_value=200.0,
-                value=0.0,
+                value=None,
                 step=0.1,
                 key="quick_gewicht_input"
             )
             
             if st.button("➕ Log Gewicht", key="quick_gewicht_submit", type="primary", use_container_width=True):
-                if gewicht_input == 0.0:
+                if not gewicht_input:
                     st.error("Vul eerst je gewicht in!")
                 else:
                     try:
