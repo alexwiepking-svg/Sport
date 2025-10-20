@@ -2085,16 +2085,23 @@ def main():
                     
                     # Genereer coaching
                     if HELPERS_AVAILABLE:
-                        coaching_report = groq_helper.generate_daily_coaching(
-                            current_data=current_data,
-                            targets=st.session_state.targets,
-                            name=name
-                        )
-                        
-                        st.markdown("---")
-                        st.markdown(coaching_report)
-                        st.markdown("---")
-                        st.caption(f"🕐 Gegenereerd op {datetime.now().strftime('%H:%M')}")
+                        try:
+                            coaching_report = groq_helper.generate_daily_coaching(
+                                current_data=current_data,
+                                targets=st.session_state.targets,
+                                name=name
+                            )
+                            
+                            st.markdown("---")
+                            st.markdown(coaching_report)
+                            st.markdown("---")
+                            st.caption(f"🕐 Gegenereerd op {datetime.now().strftime('%H:%M')}")
+                        except Exception as e:
+                            error_msg = str(e)
+                            if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                                st.warning("⏳ **Groq API rate limit bereikt** - Probeer over een paar minuten opnieuw, of upgrade naar Dev Tier bij [Groq Console](https://console.groq.com/settings/billing)")
+                            else:
+                                st.error(f"❌ Kon geen coaching rapport genereren: {error_msg}")
                     else:
                         st.error("AI Dagcoach is niet beschikbaar (groq_helper niet geladen)")
                         
@@ -2757,70 +2764,73 @@ def main():
             """, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Calories burned section - now showing BMR, Steps, Activities, and Total
-        st.markdown("### 🔥 Calorieverbranding")
+        # Calories burned section - now showing all 6 metrics in one unified section
+        st.markdown("### 🔥 Energie Balans")
+        
+        # Row 1: Calorie expenditure breakdown (4 cards)
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.1)); 
-                        padding: 18px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🛏️ BMR (Basis)</div>
-                <div style="font-size: 30px; font-weight: bold; color: #fb923c; margin: 12px 0;">{bmr:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">rustmetabolisme</div>
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
+                        text-align: center; height: 145px; box-sizing: border-box;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🛏️ BMR</div>
+                <div style="font-size: 26px; font-weight: bold; color: #fb923c; margin: 8px 0;">{bmr:.0f}<span style="font-size: 14px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">rustmetabolisme</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1)); 
-                        padding: 18px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🚶 Stappen</div>
-                <div style="font-size: 30px; font-weight: bold; color: #22c55e; margin: 12px 0;">{steps_calories:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{today_stappen:,.0f} stappen</div>
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);
+                        text-align: center; height: 145px; box-sizing: border-box;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🚶 Stappen</div>
+                <div style="font-size: 26px; font-weight: bold; color: #22c55e; margin: 8px 0;">{steps_calories:.0f}<span style="font-size: 14px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">{today_stappen:,.0f} stappen</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
-            calories_label = "activiteiten" if view_mode != "📅 Dag" else "activiteiten vandaag"
+            calories_label = "sport" if view_mode != "📅 Dag" else "sport vandaag"
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.1)); 
-                        padding: 18px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🏋️ Activiteiten</div>
-                <div style="font-size: 30px; font-weight: bold; color: #ef4444; margin: 12px 0;">{calories_burned:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{calories_label}</div>
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);
+                        text-align: center; height: 145px; box-sizing: border-box;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🏋️ Sport</div>
+                <div style="font-size: 26px; font-weight: bold; color: #ef4444; margin: 8px 0;">{calories_burned:.0f}<span style="font-size: 14px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">{calories_label}</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col4:
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.1)); 
-                        padding: 18px; border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🔥 Totaal Verbrand</div>
-                <div style="font-size: 30px; font-weight: bold; color: #a855f7; margin: 12px 0;">{total_expenditure:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">BMR + stappen + sport</div>
+                        padding: 15px; border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.3);
+                        text-align: center; height: 145px; box-sizing: border-box;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🔥 Totaal</div>
+                <div style="font-size: 26px; font-weight: bold; color: #a855f7; margin: 8px 0;">{total_expenditure:.0f}<span style="font-size: 14px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">totale verbranding</div>
             </div>
             """, unsafe_allow_html=True)
         
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<div style='margin: 10px 0;'></div>", unsafe_allow_html=True)
         
-        # Net calories section
-        col1, col2, col3 = st.columns(3)
+        # Row 2: Net calories and activity summary (2 wider cards)
+        col1, col2 = st.columns(2)
         
         with col1:
             net_color = "#4ade80" if net_calories > 0 else "#f87171"
-            deficit_or_surplus = "surplus" if net_calories > 0 else "deficit"
+            deficit_or_surplus = "Surplus" if net_calories > 0 else "Deficit"
+            emoji = "📈" if net_calories > 0 else "📉"
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(13, 148, 136, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(20, 184, 166, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">⚖️ Netto Calorieën</div>
-                <div style="font-size: 30px; font-weight: bold; color: {net_color}; margin: 12px 0;">{net_calories:+.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{deficit_or_surplus} ({metric_label})</div>
+                        text-align: center; height: 145px; box-sizing: border-box;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">{emoji} Netto Calorieën</div>
+                <div style="font-size: 32px; font-weight: bold; color: {net_color}; margin: 10px 0;">{net_calories:+.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">{deficit_or_surplus} - Gegeten minus Totale Verbranding</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -2830,22 +2840,26 @@ def main():
                 if not activities_with_calories.empty:
                     cardio_count = len(activities_with_calories[activities_with_calories['type'].str.lower() == 'cardio'])
                     kracht_count = len(activities_with_calories[activities_with_calories['type'].str.lower() == 'kracht'])
-                    activity_summary = f"{cardio_count} cardio + {kracht_count} kracht"
+                    activity_summary = f"{cardio_count + kracht_count}"
+                    activity_detail = f"{cardio_count} cardio · {kracht_count} kracht"
                     label = "sessies vandaag"
                 else:
-                    activity_summary = "Geen activiteiten"
-                    label = ""
+                    activity_summary = "0"
+                    activity_detail = "Geen activiteiten"
+                    label = "vandaag"
             else:
-                activity_summary = f"{period_stats['cardio_sessions']} cardio + {period_stats['strength_sessions']} kracht"
-                label = f"totaal ({period_stats['total_workouts']} sessies)"
+                total_sessions = period_stats['total_workouts']
+                activity_summary = f"{total_sessions}"
+                activity_detail = f"{period_stats['cardio_sessions']} cardio · {period_stats['strength_sessions']} kracht"
+                label = f"totaal deze periode"
             
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(126, 34, 206, 0.1)); 
-                        padding: 18px; border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">💪 Activiteiten</div>
-                <div style="font-size: 28px; font-weight: bold; color: #a855f7; margin: 12px 0;">{activity_summary}</div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{label}</div>
+            <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.1)); 
+                        padding: 18px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.3);
+                        text-align: center; height: 145px; box-sizing: border-box;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">💪 Trainingen</div>
+                <div style="font-size: 32px; font-weight: bold; color: #6366f1; margin: 10px 0;">{activity_summary}<span style="font-size: 16px; opacity: 0.7;"> ×</span></div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">{activity_detail}</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -3148,8 +3162,11 @@ def main():
                     feedback_data, targets, period_stats, name
                 )
                 insights = ai_feedback.get('insights', [])
-            except:
-                # Fallback to static if AI fails
+            except Exception as e:
+                # Fallback to static if AI fails (including rate limits)
+                error_msg = str(e)
+                if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                    st.info("💡 AI inzichten tijdelijk niet beschikbaar (rate limit). Standaard inzichten worden getoond.")
                 insights = generate_insights(period_stats, totals, view_mode, targets)
         else:
             insights = generate_insights(period_stats, totals, view_mode, targets)
@@ -3245,8 +3262,11 @@ def main():
                     )
                     issues = ai_feedback.get('improvements', [])
                     successes = ai_feedback.get('successes', [])
-                except:
-                    # Fallback to static
+                except Exception as e:
+                    # Fallback to static (including rate limits)
+                    error_msg = str(e)
+                    if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                        st.info("💡 AI feedback tijdelijk niet beschikbaar (rate limit). Standaard feedback wordt getoond.")
                     issues = []
                     if totals['calorien'] < 1900:
                         issues.append(f"🔴 Te weinig calorieën: {totals['calorien']:.0f} kcal is te laag voor training")
