@@ -1186,6 +1186,44 @@ def calculate_body_projections(metingen_df, weeks_ahead=4):
             'message': f'Fout bij berekenen projecties: {str(e)}'
         }
 
+def calculate_bmr(weight_kg, height_cm=180, age=30, gender='male'):
+    """
+    Calculate Basal Metabolic Rate using Mifflin-St Jeor Equation
+    BMR = (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) + s
+    where s = +5 for males and -161 for females
+    """
+    bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age)
+    if gender.lower() == 'male':
+        bmr += 5
+    else:
+        bmr -= 161
+    return bmr
+
+def calculate_steps_calories(steps, weight_kg=70):
+    """
+    Calculate calories burned from steps
+    Average: ~0.04 - 0.05 calories per step per kg body weight
+    """
+    if steps == 0:
+        return 0
+    # Conservative estimate: 0.04 cal/step/kg
+    return steps * 0.04 * (weight_kg / 70)
+
+def calculate_tdee(bmr, steps=0, weight_kg=70, activity_multiplier=1.2):
+    """
+    Calculate Total Daily Energy Expenditure
+    TDEE = BMR × activity multiplier + steps calories
+    
+    Activity multipliers:
+    - 1.2: Sedentary (little/no exercise)
+    - 1.375: Light (1-3 days/week)
+    - 1.55: Moderate (3-5 days/week)
+    - 1.725: Very active (6-7 days/week)
+    - 1.9: Extra active (athlete)
+    """
+    steps_cal = calculate_steps_calories(steps, weight_kg)
+    return (bmr * activity_multiplier) + steps_cal
+
 def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_kg=None, sets=None, reps=None):
     """
     Estimate calories burned based on activity type and duration
@@ -2561,14 +2599,29 @@ def main():
         # Calculate calories burned from activities
         if view_mode == "📅 Dag":
             calories_burned, activities_with_calories = calculate_total_calories_burned(activities_df, today_str)
+            # Get today's steps
+            today_stappen = 0
+            if not stappen_df.empty:
+                today_stappen_row = stappen_df[stappen_df['datum'].isin([today_str, today_str_dash])]
+                if not today_stappen_row.empty:
+                    today_stappen = today_stappen_row['stappen'].sum()
         else:
             # For period view, calculate total and average
             filtered_activities = filter_by_date_range(activities_df, start_date, end_date)
             calories_burned = period_stats['avg_calories_burned']
             activities_with_calories = filtered_activities
+            # Average steps for period
+            period_stappen = filter_by_date_range(stappen_df, start_date, end_date)
+            today_stappen = period_stappen['stappen'].mean() if not period_stappen.empty else 0
         
-        # Calculate net calories (consumed - burned)
-        net_calories = totals['calorien'] - calories_burned
+        # Calculate BMR and TDEE
+        current_weight = targets.get('weight', 106.2)
+        bmr = calculate_bmr(current_weight, height_cm=180, age=30, gender='male')
+        steps_calories = calculate_steps_calories(today_stappen, current_weight)
+        total_expenditure = bmr + steps_calories + calories_burned
+        
+        # Calculate net calories (consumed - total expenditure)
+        net_calories = totals['calorien'] - total_expenditure
         
         # Metrics with colored backgrounds
         # Show if it's average or daily
@@ -2704,34 +2757,74 @@ def main():
             """, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Calories burned section
-        col1, col2, col3 = st.columns(3)
+        # Calories burned section - now showing BMR, Steps, Activities, and Total
+        st.markdown("### 🔥 Calorieverbranding")
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            calories_label = "door activiteiten" if view_mode != "📅 Dag" else "door activiteiten vandaag"
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.1)); 
-                        padding: 18px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);
+            <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.1)); 
+                        padding: 18px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
                         text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🏃 Calorieën Verbrand</div>
-                <div style="font-size: 30px; font-weight: bold; color: #ef4444; margin: 12px 0;">{calories_burned:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{calories_label} ({metric_label})</div>
+                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🛏️ BMR (Basis)</div>
+                <div style="font-size: 30px; font-weight: bold; color: #fb923c; margin: 12px 0;">{bmr:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">rustmetabolisme</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1)); 
+                        padding: 18px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);
+                        text-align: center; height: 160px; box-sizing: border-box;">
+                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🚶 Stappen</div>
+                <div style="font-size: 30px; font-weight: bold; color: #22c55e; margin: 12px 0;">{steps_calories:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{today_stappen:,.0f} stappen</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            calories_label = "activiteiten" if view_mode != "📅 Dag" else "activiteiten vandaag"
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.1)); 
+                        padding: 18px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);
+                        text-align: center; height: 160px; box-sizing: border-box;">
+                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🏋️ Activiteiten</div>
+                <div style="font-size: 30px; font-weight: bold; color: #ef4444; margin: 12px 0;">{calories_burned:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{calories_label}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.1)); 
+                        padding: 18px; border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.3);
+                        text-align: center; height: 160px; box-sizing: border-box;">
+                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🔥 Totaal Verbrand</div>
+                <div style="font-size: 30px; font-weight: bold; color: #a855f7; margin: 12px 0;">{total_expenditure:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">BMR + stappen + sport</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Net calories section
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
             net_color = "#4ade80" if net_calories > 0 else "#f87171"
+            deficit_or_surplus = "surplus" if net_calories > 0 else "deficit"
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(13, 148, 136, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(20, 184, 166, 0.3);
                         text-align: center; height: 160px; box-sizing: border-box;">
                 <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">⚖️ Netto Calorieën</div>
-                <div style="font-size: 30px; font-weight: bold; color: {net_color}; margin: 12px 0;">{net_calories:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">gegeten - verbrand ({metric_label})</div>
+                <div style="font-size: 30px; font-weight: bold; color: {net_color}; margin: 12px 0;">{net_calories:+.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 12px; opacity: 0.7; margin-top: 8px;">{deficit_or_surplus} ({metric_label})</div>
             </div>
             """, unsafe_allow_html=True)
         
-        with col3:
+        with col2:
             # Calculate activity count for the period
             if view_mode == "📅 Dag":
                 if not activities_with_calories.empty:
