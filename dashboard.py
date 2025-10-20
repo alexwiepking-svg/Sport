@@ -80,17 +80,39 @@ st.markdown("""
         [data-testid="column"] {
             width: 100% !important;
             flex: 100% !important;
-            margin-bottom: 0.25rem !important;
+            min-width: 100% !important;
+            margin-bottom: 0.5rem !important;
+            padding: 0 !important;
         }
         
         /* Reduce spacing between stacked column content */
         [data-testid="column"] > div {
-            margin-bottom: 0.3rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Fix for inline styled divs (progress cards) */
+        [data-testid="column"] > div > div[style*="background"] {
+            margin-bottom: 0.5rem !important;
+            width: 100% !important;
         }
         
         /* Minimize element container spacing */
         .element-container {
-            margin-bottom: 0.25rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Prevent overflow and overlapping of custom HTML cards */
+        div[style*="background: linear-gradient"],
+        div[style*="background: rgba"] {
+            margin-bottom: 0.8rem !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+        }
+        
+        /* Force proper stacking context */
+        [data-testid="stVerticalBlock"] > div {
+            position: relative !important;
+            z-index: auto !important;
         }
         
         /* Smaller tabs */
@@ -127,8 +149,13 @@ st.markdown("""
         
         /* Minimize divider spacing */
         hr {
+            margin-top: 0.8rem !important;
+            margin-bottom: 0.8rem !important;
+        }
+        
+        /* Add spacing after custom HTML sections */
+        .stMarkdown + .stMarkdown {
             margin-top: 0.5rem !important;
-            margin-bottom: 0.5rem !important;
         }
         
         /* Compact info/warning boxes */
@@ -181,7 +208,23 @@ st.markdown("""
     
     /* Reduce spacing between elements (all screens) */
     .element-container {
-        margin-bottom: 0.3rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Mobile: Force proper vertical stacking with clear separation */
+    @media (max-width: 768px) {
+        /* Ensure row of columns becomes vertical stack */
+        [data-testid="stHorizontalBlock"] {
+            flex-direction: column !important;
+            gap: 0.8rem !important;
+        }
+        
+        /* Clear any floats that might cause overlap */
+        [data-testid="column"]:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
