@@ -2176,7 +2176,7 @@ def main():
         if sum(current_nutrition.values()) == 0:
             current_nutrition = calculate_nutrition_totals(nutrition_df, today_str_dash)
         
-        # SECTION 1: REAL-TIME PROGRESS NAAR TARGETS
+        # SECTION 1: REAL-TIME PROGRESS NAAR TARGETS (Compact cards)
         st.markdown("### 📊 Je Voortgang Vandaag")
         
         col1, col2, col3, col4 = st.columns(4)
@@ -2184,6 +2184,7 @@ def main():
         with col1:
             cal_progress_pct = current_nutrition['calorien']/targets['calories']*100 if targets['calories'] > 0 else 0
             is_over_cal = cal_progress_pct > 110
+            over_amount = current_nutrition['calorien'] - targets['calories'] if cal_progress_pct > 100 else 0
             
             if cal_progress_pct <= 100:
                 cal_green = cal_progress_pct
@@ -2196,17 +2197,17 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(220, 38, 38, 0.1)); 
-                        padding: 15px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                        text-align: center;">
-                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🔥 Calorieën</div>
-                <div style="font-size: 26px; font-weight: bold; color: #fb923c; margin: 5px 0;">
-                    {current_nutrition['calorien']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['calories']}</span>
+                        padding: 12px; border-radius: 10px; border: 1px solid rgba(249, 115, 22, 0.3);
+                        text-align: center; height: 120px; box-sizing: border-box;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🔥 Calorieën</div>
+                <div style="font-size: 22px; font-weight: bold; color: #fb923c; margin: 3px 0;">
+                    {current_nutrition['calorien']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['calories']}</span>
                 </div>
-                <div style="font-size: 11px; margin-bottom: 8px;">
-                    <span style="font-weight: bold; color: {'#ef4444' if is_over_cal else '#22c55e'};">{cal_progress_pct:.0f}%</span> 
-                    {'⚠️ Over' if is_over_cal else '✓'}
+                <div style="font-size: 10px; margin-bottom: 5px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_cal else '#22c55e'};">{cal_progress_pct:.0f}%</span>
+                    {f' ({over_amount:.0f} over)' if over_amount > 0 else ' ✓'}
                 </div>
-                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); width: {cal_green:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {cal_red:.1f}%; flex-shrink: 0;"></div>' if cal_red > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {cal_gray:.1f}%; flex-shrink: 0;"></div>' if cal_gray > 0 else ''}
@@ -2217,6 +2218,7 @@ def main():
         with col2:
             prot_progress_pct = current_nutrition['eiwit']/targets['protein']*100 if targets['protein'] > 0 else 0
             is_over_prot = prot_progress_pct > 130
+            over_amount = current_nutrition['eiwit'] - targets['protein'] if prot_progress_pct > 100 else 0
             
             if prot_progress_pct <= 100:
                 prot_green = prot_progress_pct
@@ -2229,17 +2231,17 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.1)); 
-                        padding: 15px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
-                        text-align: center;">
-                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">💪 Eiwit</div>
-                <div style="font-size: 26px; font-weight: bold; color: #60a5fa; margin: 5px 0;">
-                    {current_nutrition['eiwit']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['protein']}</span>
+                        padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);
+                        text-align: center; height: 120px; box-sizing: border-box;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">💪 Eiwit</div>
+                <div style="font-size: 22px; font-weight: bold; color: #60a5fa; margin: 3px 0;">
+                    {current_nutrition['eiwit']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['protein']}</span>
                 </div>
-                <div style="font-size: 11px; margin-bottom: 8px;">
-                    <span style="font-weight: bold; color: {'#ef4444' if is_over_prot else '#22c55e'};">{prot_progress_pct:.0f}%</span> 
-                    {'⚠️ Over' if is_over_prot else '✓'}
+                <div style="font-size: 10px; margin-bottom: 5px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_prot else '#22c55e'};">{prot_progress_pct:.0f}%</span>
+                    {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
                 </div>
-                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #60a5fa, #3b82f6); width: {prot_green:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {prot_red:.1f}%; flex-shrink: 0;"></div>' if prot_red > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {prot_gray:.1f}%; flex-shrink: 0;"></div>' if prot_gray > 0 else ''}
@@ -2250,6 +2252,7 @@ def main():
         with col3:
             carbs_progress_pct = current_nutrition['koolhydraten']/targets['carbs']*100 if targets['carbs'] > 0 else 0
             is_over_carbs = carbs_progress_pct > 110
+            over_amount = current_nutrition['koolhydraten'] - targets['carbs'] if carbs_progress_pct > 100 else 0
             
             if carbs_progress_pct <= 100:
                 carbs_green = carbs_progress_pct
@@ -2262,17 +2265,17 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1)); 
-                        padding: 15px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);
-                        text-align: center;">
-                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🌾 Koolhydraten</div>
-                <div style="font-size: 26px; font-weight: bold; color: #34d399; margin: 5px 0;">
-                    {current_nutrition['koolhydraten']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['carbs']}</span>
+                        padding: 12px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.3);
+                        text-align: center; height: 120px; box-sizing: border-box;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🌾 Koolhydraten</div>
+                <div style="font-size: 22px; font-weight: bold; color: #34d399; margin: 3px 0;">
+                    {current_nutrition['koolhydraten']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['carbs']}</span>
                 </div>
-                <div style="font-size: 11px; margin-bottom: 8px;">
-                    <span style="font-weight: bold; color: {'#ef4444' if is_over_carbs else '#22c55e'};">{carbs_progress_pct:.0f}%</span> 
-                    {'⚠️ Over' if is_over_carbs else '✓'}
+                <div style="font-size: 10px; margin-bottom: 5px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_carbs else '#22c55e'};">{carbs_progress_pct:.0f}%</span>
+                    {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
                 </div>
-                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {carbs_green:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {carbs_red:.1f}%; flex-shrink: 0;"></div>' if carbs_red > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {carbs_gray:.1f}%; flex-shrink: 0;"></div>' if carbs_gray > 0 else ''}
@@ -2283,6 +2286,7 @@ def main():
         with col4:
             fats_progress_pct = current_nutrition['vetten']/targets['fats']*100 if targets['fats'] > 0 else 0
             is_over_fats = fats_progress_pct > 110
+            over_amount = current_nutrition['vetten'] - targets['fats'] if fats_progress_pct > 100 else 0
             
             if fats_progress_pct <= 100:
                 fats_green = fats_progress_pct
@@ -2295,17 +2299,17 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.1)); 
-                        padding: 15px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);
-                        text-align: center;">
-                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🥑 Vetten</div>
-                <div style="font-size: 26px; font-weight: bold; color: #a78bfa; margin: 5px 0;">
-                    {current_nutrition['vetten']:.0f}<span style="font-size: 14px; opacity: 0.7;">/{targets['fats']}</span>
+                        padding: 12px; border-radius: 10px; border: 1px solid rgba(139, 92, 246, 0.3);
+                        text-align: center; height: 120px; box-sizing: border-box;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🥑 Vetten</div>
+                <div style="font-size: 22px; font-weight: bold; color: #a78bfa; margin: 3px 0;">
+                    {current_nutrition['vetten']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['fats']}</span>
                 </div>
-                <div style="font-size: 11px; margin-bottom: 8px;">
-                    <span style="font-weight: bold; color: {'#ef4444' if is_over_fats else '#22c55e'};">{fats_progress_pct:.0f}%</span> 
-                    {'⚠️ Over' if is_over_fats else '✓'}
+                <div style="font-size: 10px; margin-bottom: 5px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_fats else '#22c55e'};">{fats_progress_pct:.0f}%</span>
+                    {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
                 </div>
-                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); width: {fats_green:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {fats_red:.1f}%; flex-shrink: 0;"></div>' if fats_red > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {fats_gray:.1f}%; flex-shrink: 0;"></div>' if fats_gray > 0 else ''}
