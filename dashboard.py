@@ -2253,6 +2253,10 @@ def main():
         col_left, col_right = st.columns([2, 1])
         
         with col_left:
+            # Get username once at top of scope to avoid UnboundLocalError
+            current_username = st.session_state.get('username', 'alex')
+            user_sheet_id = st.session_state.get('user_sheet_id')
+            
             # VOEDING CARD
             st.markdown("""
             <div style="background: rgba(249, 115, 22, 0.15); padding: 15px; border-radius: 10px; 
@@ -2268,11 +2272,8 @@ def main():
             )
             
             # Load favorites en recente maaltijden
-            user_sheet_id = st.session_state.get('user_sheet_id')
-            # Use a safe local username read to avoid potential UnboundLocalError
-            user_for_sheets = st.session_state.get('username', 'alex')
-            favorites = sheets_helper.load_favorite_meals(user_for_sheets, user_sheet_id)
-            recent_meals = sheets_helper.get_recent_meals(user_for_sheets, user_sheet_id, limit=3)
+            favorites = sheets_helper.load_favorite_meals(current_username, user_sheet_id)
+            recent_meals = sheets_helper.get_recent_meals(current_username, user_sheet_id, limit=3)
             
             # Toon quick-select buttons als er favorieten/recente items zijn
             if favorites or recent_meals:
@@ -2357,10 +2358,9 @@ def main():
                                     parsed = groq_helper.parse_nutrition(st.session_state['favorite_meal_input'])
                                     parsed['maaltijd'] = maaltijd_type
                                     
-                                    # Save favorite (use safe local username)
-                                    user_for_sheets = st.session_state.get('username', 'alex')
+                                    # Save favorite (use username from outer scope)
                                     success = sheets_helper.save_favorite_meal(
-                                        user_for_sheets,
+                                        current_username,
                                         fav_name,
                                         parsed,
                                         user_sheet_id
