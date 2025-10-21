@@ -21,13 +21,14 @@ def get_groq_client():
         )
     return Groq(api_key=api_key)
 
-def parse_nutrition(text: str, maaltijd: str) -> Dict[str, Any]:
+def parse_nutrition(text: str, maaltijd: str, retry: bool = False) -> Dict[str, Any]:
     """
     Parse voeding input naar gestructureerde data
     
     Args:
         text: Natuurlijke taal beschrijving (bijv. "200g kip, 150g rijst, broccoli")
         maaltijd: Type maaltijd (Ontbijt/Lunch/Avondeten/Tussendoor)
+        retry: Internal flag voor retry mechanisme
     
     Returns:
         {
@@ -41,7 +42,16 @@ def parse_nutrition(text: str, maaltijd: str) -> Dict[str, Any]:
     """
     client = get_groq_client()
     
-    prompt = f"""Je bent een professionele voedingsdeskundige. Analyseer de volgende maaltijd en geef REALISTISCHE, NAUWKEURIGE macronutriënten.
+    # Simpelere prompt bij retry
+    if retry:
+        prompt = f"""Analyseer deze maaltijd en geef macronutriënten als JSON:
+
+{text}
+
+Antwoord in dit exacte formaat (ALLEEN JSON, geen extra tekst):
+{{"omschrijving": "beschrijving", "calorien": 0, "eiwit": 0, "koolhydraten": 0, "vetten": 0, "vezels": 0}}"""
+    else:
+        prompt = f"""Je bent een professionele voedingsdeskundige. Analyseer de volgende maaltijd en geef REALISTISCHE, NAUWKEURIGE macronutriënten.
 
 Maaltijd type: {maaltijd}
 Beschrijving: {text}
@@ -91,14 +101,45 @@ Geef ALLEEN de JSON output, geen extra tekst."""
         
         # Verwijder eventuele markdown code blocks
         if result.startswith('```'):
-            result = result.split('```')[1]
-            if result.startswith('json'):
-                result = result[4:]
+            # Split op ``` en pak het middelste deel
+            parts = result.split('```')
+            if len(parts) >= 2:
+                result = parts[1]
+                # Verwijder 'json' aan het begin als dat er staat
+                if result.strip().startswith('json'):
+                    result = result.strip()[4:].strip()
         
-        data = json.loads(result)
+        # Extra cleanup: verwijder trailing text na }
+        if '}' in result:
+            result = result[:result.rfind('}')+1]
+        
+        # Remove any text before {
+        if '{' in result:
+            result = result[result.find('{'):]
+        
+        try:
+            data = json.loads(result)
+        except json.JSONDecodeError as je:
+            # Als JSON parsing faalt EN we hebben nog niet geretried, probeer opnieuw
+            if not retry:
+                return parse_nutrition(text, maaltijd, retry=True)
+            # Als retry ook faalt, geef duidelijke error
+            raise Exception(f"AI kan deze invoer niet verwerken. Probeer het korter/eenvoudiger te formuleren.")
+        
         return data
         
     except Exception as e:
+        # Als het een retry was die faalde, geef user-friendly error
+        if retry or "AI kan deze invoer niet verwerken" in str(e):
+            raise Exception("AI kan deze invoer niet verwerken. Probeer: minder ingrediënten, kortere beschrijving, of andere bewoordingen.")
+        
+        # Als het de eerste poging was, probeer retry met simpelere prompt
+        if "Fout bij parsen voeding" not in str(e):
+            try:
+                return parse_nutrition(text, maaltijd, retry=True)
+            except:
+                pass
+        
         raise Exception(f"Fout bij parsen voeding: {str(e)}")
 
 def parse_exercise(text: str) -> Dict[str, Any]:
