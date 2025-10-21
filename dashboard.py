@@ -2699,7 +2699,7 @@ def main():
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
                     ({metric_context})
                 </div>
-                <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
+                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); width: {cal_green_width:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {cal_red_width:.1f}%; flex-shrink: 0;"></div>' if cal_red_width > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {cal_gray_width:.1f}%; flex-shrink: 0;"></div>' if cal_gray_width > 0 else ''}
@@ -2734,7 +2734,7 @@ def main():
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
                     ({metric_context})
                 </div>
-                <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
+                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #60a5fa, #3b82f6); width: {protein_green_width:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {protein_red_width:.1f}%; flex-shrink: 0;"></div>' if protein_red_width > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {protein_gray_width:.1f}%; flex-shrink: 0;"></div>' if protein_gray_width > 0 else ''}
@@ -2767,10 +2767,10 @@ def main():
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
                     ({metric_context})
                 </div>
-                <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
+                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {carbs_green_width:.1f}%; flex-shrink: 0;"></div>' if carbs_green_width > 0 else ''}
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {carbs_red_width:.1f}%; flex-shrink: 0;"></div>' if carbs_red_width > 0 else ''}
-                    {f'<div style="height: 100%; background: #555555; width: {carbs_gray_width:.1f}%; flex-shrink: 0;"></div>' if carbs_gray_width > 0 else ''}
+                    {f'<div style="height: 100%; background: #3a3a3a; width: {carbs_gray_width:.1f}%; flex-shrink: 0;"></div>' if carbs_gray_width > 0 else ''}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -2801,7 +2801,7 @@ def main():
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
                     ({metric_context})
                 </div>
-                <div style="height: 8px; background: transparent; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
+                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); width: {fats_green_width:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {fats_red_width:.1f}%; flex-shrink: 0;"></div>' if fats_red_width > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {fats_gray_width:.1f}%; flex-shrink: 0;"></div>' if fats_gray_width > 0 else ''}
