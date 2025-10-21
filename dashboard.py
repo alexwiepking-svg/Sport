@@ -1305,11 +1305,15 @@ def calculate_tdee(bmr, steps=0, weight_kg=70, activity_multiplier=1.2):
     steps_cal = calculate_steps_calories(steps, weight_kg)
     return (bmr * activity_multiplier) + steps_cal
 
-def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_kg=None, sets=None, reps=None):
+def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_kg=None, sets=None, reps=None, gewicht=None, methode=None):
     """
     Estimate calories burned based on activity type and duration
     Using MET (Metabolic Equivalent of Task) values
     Formula: Calories = MET × weight(kg) × time(hours)
+    
+    Args:
+        gewicht_kg: Body weight for calorie calculation
+        gewicht: Weight lifted (for strength training intensity adjustment)
     """
     # Use session state weight if not provided
     if gewicht_kg is None:
@@ -1333,19 +1337,21 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
     if hours == 0 and activity_type.lower() == 'kracht':
         if pd.notna(sets) and pd.notna(reps):
             try:
-                # Estimate: 3-4 seconds per rep + 90 seconds rest between sets
+                # Estimate: 5-6 seconds per rep (controlled movements) + 120 seconds rest between sets
                 total_sets = int(float(sets))
                 total_reps = int(float(reps))
-                work_time = total_sets * total_reps * 4  # 4 seconds per rep
-                rest_time = (total_sets - 1) * 90  # 90 seconds rest between sets
-                total_seconds = work_time + rest_time
+                work_time = total_sets * total_reps * 5.5  # 5.5 seconds per rep (controlled tempo)
+                rest_time = (total_sets - 1) * 120  # 120 seconds rest between sets (more realistic)
+                # Add setup time: ~30 seconds per exercise
+                setup_time = 30
+                total_seconds = work_time + rest_time + setup_time
                 hours = total_seconds / 3600
             except:
-                # Default estimate: 5 minutes per exercise
-                hours = 5 / 60
+                # Default estimate: 6 minutes per exercise (more realistic)
+                hours = 6 / 60
         else:
-            # If no sets/reps data, estimate 5 minutes per exercise
-            hours = 5 / 60
+            # If no sets/reps data, estimate 6 minutes per exercise
+            hours = 6 / 60
     
     if hours == 0:
         return 0
@@ -1367,10 +1373,10 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
         'cycling': 7.5,
         'swimming': 7.0,
         
-        # Strength training (Kracht)
-        'strength': 5.0,  # General weight lifting with moderate effort
-        'negative': 5.5,  # Negative reps are slightly more intense
-        'regular': 5.0
+        # Strength training (Kracht) - Higher values to match gym equipment tracking
+        'strength': 6.5,  # General weight lifting with moderate-high effort
+        'negative': 7.0,  # Negative reps are more intense (more muscle tension)
+        'regular': 6.5   # Regular machine training at moderate-high intensity
     }
     
     # Determine MET value based on activity
@@ -1401,7 +1407,29 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
                     met = 9.0
     
     elif activity_type.lower() == 'kracht':
-        met = 5.0  # Strength training with moderate intensity
+        # Base MET for strength training
+        met = 6.5  # Moderate-high intensity weight training
+        
+        # Adjust based on method if available
+        if methode is not None and pd.notna(methode):
+            methode_str = str(methode).lower()
+            if 'negative' in methode_str:
+                met = 7.0  # Higher intensity for negatives
+            elif 'regular' in methode_str:
+                met = 6.5  # Standard machine training
+        
+        # Bonus: If heavy weights are used, add intensity multiplier
+        if gewicht is not None and pd.notna(gewicht) and gewicht != '':
+            try:
+                weight_used = float(str(gewicht).replace(',', '.'))
+                # If lifting > 50kg, add +0.5 MET (high intensity)
+                if weight_used > 50:
+                    met += 0.5
+                # If lifting > 70kg, add another +0.5 MET (very high intensity)
+                if weight_used > 70:
+                    met += 0.5
+            except:
+                pass
     
     # Calculate calories
     calories = met * gewicht_kg * hours
@@ -1430,7 +1458,9 @@ def calculate_total_calories_burned(activities_df, date=None):
             row.get('afstand', ''),
             row.get('duur', ''),
             sets=row.get('sets'),
-            reps=row.get('reps')
+            reps=row.get('reps'),
+            gewicht=row.get('gewicht'),
+            methode=row.get('methode')
         ),
         axis=1
     )
