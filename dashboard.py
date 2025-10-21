@@ -1229,13 +1229,66 @@ def calculate_bmr(weight_kg, height_cm=180, age=30, gender='male'):
 
 def calculate_steps_calories(steps, weight_kg=70):
     """
-    Calculate calories burned from steps
-    Average: ~0.04 - 0.05 calories per step per kg body weight
+    Calculate calories burned from steps (excluding sport activities)
+    Average: ~0.025 calories per step per kg body weight
+    Note: This is for CASUAL walking, not tracked sport activities
     """
     if steps == 0:
         return 0
-    # Conservative estimate: 0.04 cal/step/kg
-    return steps * 0.04 * (weight_kg / 70)
+    # Realistic estimate for casual steps: 0.025 cal/step/kg
+    # This is lower than sport activities to avoid double counting
+    return steps * 0.025 * (weight_kg / 70)
+
+def calculate_walking_steps_from_activities(activities_df, date_str):
+    """
+    Calculate estimated steps from walking/cardio activities to avoid double counting
+    Returns: estimated steps from sport activities
+    """
+    if activities_df.empty:
+        return 0
+    
+    total_walking_steps = 0
+    
+    # Filter activities for this date
+    date_formats = [date_str, date_str.replace('/', '-')]
+    day_activities = activities_df[activities_df['datum'].isin(date_formats)]
+    
+    for _, row in day_activities.iterrows():
+        activity_type = str(row.get('type', '')).lower()
+        activiteit = str(row.get('activiteit', '')).lower()
+        afstand = row.get('afstand', 0)
+        duur = row.get('duur', '')
+        
+        # Only count walking/cardio activities
+        if activity_type != 'cardio':
+            continue
+        
+        # Estimate steps from distance (if available)
+        if pd.notna(afstand) and afstand != '':
+            try:
+                distance_km = float(str(afstand).replace(',', '.'))
+                # Average: 1250 steps per km
+                total_walking_steps += distance_km * 1250
+            except:
+                pass
+        
+        # Or estimate from duration if distance not available
+        elif 'walk' in activiteit or 'wandel' in activiteit:
+            if pd.notna(duur) and duur != '':
+                try:
+                    time_parts = str(duur).split(':')
+                    minutes = 0
+                    if len(time_parts) == 3:
+                        minutes = int(time_parts[0]) * 60 + int(time_parts[1])
+                    elif len(time_parts) == 2:
+                        minutes = int(time_parts[0])
+                    
+                    # Average: 100 steps per minute walking
+                    total_walking_steps += minutes * 100
+                except:
+                    pass
+    
+    return int(total_walking_steps)
 
 def calculate_tdee(bmr, steps=0, weight_kg=70, activity_multiplier=1.2):
     """
@@ -2647,6 +2700,10 @@ def main():
                 today_stappen_row = stappen_df[stappen_df['datum'].isin([today_str, today_str_dash])]
                 if not today_stappen_row.empty:
                     today_stappen = today_stappen_row['stappen'].sum()
+            
+            # IMPORTANT: Subtract walking steps from sport activities to avoid double counting
+            walking_steps_from_sport = calculate_walking_steps_from_activities(activities_df, today_str)
+            casual_steps = max(0, today_stappen - walking_steps_from_sport)
         else:
             # For period view, calculate total and average
             filtered_activities = filter_by_date_range(activities_df, start_date, end_date)
@@ -2655,11 +2712,15 @@ def main():
             # Average steps for period
             period_stappen = filter_by_date_range(stappen_df, start_date, end_date)
             today_stappen = period_stappen['stappen'].mean() if not period_stappen.empty else 0
+            
+            # For period view, estimate casual steps (simplified - could be improved)
+            casual_steps = today_stappen * 0.7  # Assume 70% of steps are casual, rest is sport
         
         # Calculate BMR and TDEE
         current_weight = targets.get('weight', 106.2)
         bmr = calculate_bmr(current_weight, height_cm=180, age=30, gender='male')
-        steps_calories = calculate_steps_calories(today_stappen, current_weight)
+        # Only count CASUAL steps (not sport-related steps)
+        steps_calories = calculate_steps_calories(casual_steps, current_weight)
         total_expenditure = bmr + steps_calories + calories_burned
         
         # Calculate net calories (consumed - total expenditure)
@@ -2828,13 +2889,16 @@ def main():
             """, unsafe_allow_html=True)
         
         with col2:
+            # Show casual steps (excluding sport walking)
+            steps_display = casual_steps if view_mode == "📅 Dag" else today_stappen
+            steps_label = f"{steps_display:,.0f} casual" if view_mode == "📅 Dag" else f"{today_stappen:,.0f} stappen"
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1)); 
                         padding: 15px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);
                         text-align: center; height: 145px; box-sizing: border-box;">
                 <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🚶 Stappen</div>
                 <div style="font-size: 26px; font-weight: bold; color: #22c55e; margin: 8px 0;">{steps_calories:.0f}<span style="font-size: 14px; opacity: 0.7;"> kcal</span></div>
-                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">{today_stappen:,.0f} stappen</div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">{steps_label}</div>
             </div>
             """, unsafe_allow_html=True)
         
