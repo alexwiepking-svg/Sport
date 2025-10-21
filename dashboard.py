@@ -1671,10 +1671,10 @@ def main():
     # Also keep a reference in the old location for compatibility
     st.session_state.targets = st.session_state[targets_key]
     
-    # Compact title - no subtitle to save space
+    # Compact title - no subtitle, minimal space
     st.markdown(f"""
-    <div style="margin-bottom: 10px;">
-        <h1 style="font-size: 1.8rem; margin: 0; padding: 0;">💪 {name}'s Dashboard</h1>
+    <div style="margin: 0; padding: 5px 0;">
+        <h1 style="font-size: 1.6rem; margin: 0; padding: 0; line-height: 1.2;">💪 {name}'s Dashboard</h1>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2473,8 +2473,9 @@ def main():
                         if st.button("💾 Opslaan", use_container_width=True):
                             if fav_name.strip():
                                 try:
-                                    # Parse de meal eerst
-                                    parsed = groq_helper.parse_nutrition(st.session_state['favorite_meal_input'], maaltijd_type)
+                                    with st.spinner("🤖 AI analyseert voeding..."):
+                                        # Parse de meal eerst
+                                        parsed = groq_helper.parse_nutrition(st.session_state['favorite_meal_input'], maaltijd_type)
                                     parsed['maaltijd'] = maaltijd_type
                                     
                                     # Save favorite (use username from outer scope)
@@ -2493,7 +2494,8 @@ def main():
                                     else:
                                         st.error("❌ Kon favoriet niet opslaan")
                                 except Exception as e:
-                                    st.error(f"❌ Fout: {str(e)}")
+                                    st.error(f"❌ Fout bij parsen voeding: {str(e)}")
+                                    st.info("💡 Tip: Probeer een andere formulering of voeg minder items toe")
                             else:
                                 st.warning("Vul een naam in!")
                     
