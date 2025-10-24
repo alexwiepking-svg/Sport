@@ -2353,7 +2353,7 @@ def main():
                     </div>
                 </div>
                 <div style="flex: 1; text-align: right;">
-                    <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">Huidige gewicht</div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">Huidige gewicht</div>
                     <div style="font-size: 48px; font-weight: bold;">{current_weight:.1f}</div>
                     <div style="font-size: 14px; opacity: 0.8;">kg</div>
                 </div>
@@ -2616,23 +2616,31 @@ def main():
             with col_debug2:
                 st.markdown("**Verbruik:**")
                 st.write(f"• BMR (basis): **{bmr:.0f} kcal**")
-                st.write(f"• Stappen: {today_stappen:,.0f} totaal")
-                st.write(f"  - Sport steps: {walking_steps_from_sport:,.0f}")
-                st.write(f"  - Casual steps: {casual_steps:,.0f}")
-                st.write(f"  - Calories: **{steps_calories:.0f} kcal**")
-                st.write(f"• Sport: **{calories_burned:.0f} kcal**")
-                st.write(f"• **Totaal verbruik: {total_expenditure:.0f} kcal**")
+                st.write(f"• Stappen:")
+                if today_stappen > 0:
+                    st.write(f"  - Gelogd: {today_stappen:,.0f}")
+                    st.write(f"  - Sport (geschat): {walking_steps_from_sport:,.0f}")
+                    st.write(f"  - Casual (netto): {casual_steps:,.0f}")
+                    st.write(f"  - Calories: **{steps_calories:.0f} kcal**")
+                else:
+                    st.write(f"  - Geen stappen gelogd (0 kcal)")
+                    if walking_steps_from_sport > 0:
+                        st.write(f"  - ℹ️ Sport bevat ~{walking_steps_from_sport:,.0f} steps")
+                st.write(f"• Sport activiteiten: **{calories_burned:.0f} kcal**")
+                st.write(f"• **Totaal: {total_expenditure:.0f} kcal**")
             
             st.markdown("---")
             st.markdown(f"**🎯 Netto: {current_nutrition['calorien']:.0f} - {total_expenditure:.0f} = {net_calories:+.0f} kcal**")
             
             # Formula explanation
             st.info(f"""
-            📐 **Formules:**
-            - BMR: Mifflin-St Jeor (10×gewicht + 6.25×lengte - 5×leeftijd + 5)
-            - Steps: {casual_steps:,.0f} × 0.025 × ({current_weight:.1f} / 70) = {steps_calories:.0f} kcal
-            - Sport: MET × gewicht × uren (variërend per activiteit)
-            - Walking steps from sport: geschat op 1250 steps/km of 100 steps/min
+            📐 **Hoe het werkt:**
+            - **BMR**: Mifflin-St Jeor formule (basis stofwisseling)
+            - **Steps**: Alleen CASUAL steps tellen (sport steps worden afgetrokken)
+              - Formule: {casual_steps:,.0f} × 0.025 × ({current_weight:.1f}/70) = {steps_calories:.0f} kcal
+            - **Sport**: MET-waarde × gewicht × uren
+              - Sport steps geschat: 1250/km of 100/min (om dubbeltelling te voorkomen)
+            - **Netto**: Gegeten - (BMR + steps + sport)
             """)
         
         st.markdown("<br>", unsafe_allow_html=True)
@@ -3158,20 +3166,25 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(220, 38, 38, 0.1)); 
-                        padding: 18px 20px 15px 20px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🔥 Calorieën</div>
-                <div style="font-size: 30px; font-weight: bold; color: #fb923c; margin: 8px 0;">{totals['calorien']:.0f}</div>
-                <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
-                    / {targets['calories']} doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{cal_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
+                        border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
+                        text-align: center; min-height: 145px; box-sizing: border-box; 
+                        display: flex; flex-direction: column; justify-content: space-between; padding: 12px;">
+                <div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🔥 Calorieën</div>
+                    <div style="font-size: 26px; font-weight: bold; color: #fb923c; line-height: 1.2;">{totals['calorien']:.0f}</div>
+                    <div style="font-size: 11px; opacity: 0.7; margin-top: 3px;">
+                        / {targets['calories']} • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{cal_progress_pct:.0f}%</span>
+                    </div>
                 </div>
-                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
-                    ({metric_context})
-                </div>
-                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
-                    <div style="height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); width: {cal_green_width:.1f}%; flex-shrink: 0;"></div>
-                    {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {cal_red_width:.1f}%; flex-shrink: 0;"></div>' if cal_red_width > 0 else ''}
-                    {f'<div style="height: 100%; background: #3a3a3a; width: {cal_gray_width:.1f}%; flex-shrink: 0;"></div>' if cal_gray_width > 0 else ''}
+                <div>
+                    <div style="font-size: 10px; opacity: 0.6; margin-bottom: 6px; font-style: italic;">
+                        ({metric_context})
+                    </div>
+                    <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                        <div style="height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); width: {cal_green_width:.1f}%; flex-shrink: 0;"></div>
+                        {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {cal_red_width:.1f}%; flex-shrink: 0;"></div>' if cal_red_width > 0 else ''}
+                        {f'<div style="height: 100%; background: #3a3a3a; width: {cal_gray_width:.1f}%; flex-shrink: 0;"></div>' if cal_gray_width > 0 else ''}
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -3194,16 +3207,16 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.1)); 
                         padding: 18px 20px 15px 20px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">💪 Eiwit</div>
-                <div style="font-size: 30px; font-weight: bold; color: #60a5fa; margin: 8px 0;">{totals['eiwit']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">💪 Eiwit</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #60a5fa; margin: 8px 0;">{totals['eiwit']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
                     / {targets['protein']}g doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{protein_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
                 </div>
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
                     ({metric_context})
                 </div>
-                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
+                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #60a5fa, #3b82f6); width: {protein_green_width:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {protein_red_width:.1f}%; flex-shrink: 0;"></div>' if protein_red_width > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {protein_gray_width:.1f}%; flex-shrink: 0;"></div>' if protein_gray_width > 0 else ''}
@@ -3227,16 +3240,16 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1)); 
                         padding: 18px 20px 15px 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🌾 Koolhydraten</div>
-                <div style="font-size: 30px; font-weight: bold; color: #34d399; margin: 8px 0;">{totals['koolhydraten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🌾 Koolhydraten</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #34d399; margin: 8px 0;">{totals['koolhydraten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
                     / {targets['carbs']}g doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{carbs_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
                 </div>
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
                     ({metric_context})
                 </div>
-                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
+                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {carbs_green_width:.1f}%; flex-shrink: 0;"></div>' if carbs_green_width > 0 else ''}
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {carbs_red_width:.1f}%; flex-shrink: 0;"></div>' if carbs_red_width > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {carbs_gray_width:.1f}%; flex-shrink: 0;"></div>' if carbs_gray_width > 0 else ''}
@@ -3261,16 +3274,16 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.1)); 
                         padding: 18px 20px 15px 20px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);
-                        text-align: center; height: 160px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🥑 Vetten</div>
-                <div style="font-size: 30px; font-weight: bold; color: #a78bfa; margin: 8px 0;">{totals['vetten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🥑 Vetten</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #a78bfa; margin: 8px 0;">{totals['vetten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 5px;">
                     / {targets['fats']}g doel • <span style="font-weight: bold; color: {'#ef4444' if is_over else '#22c55e'};">{fats_progress_pct:.0f}%</span> {'⚠️' if is_over else '✓'}
                 </div>
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 5px; font-style: italic;">
                     ({metric_context})
                 </div>
-                <div style="height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
+                <div style="height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; margin-top: 8px; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); width: {fats_green_width:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {fats_red_width:.1f}%; flex-shrink: 0;"></div>' if fats_red_width > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {fats_gray_width:.1f}%; flex-shrink: 0;"></div>' if fats_gray_width > 0 else ''}
@@ -3393,7 +3406,7 @@ def main():
                 st.markdown(f"""
                 <div style="background: rgba(59, 130, 246, 0.2); padding: 15px; border-radius: 8px; 
                             border: 1px solid rgba(59, 130, 246, 0.3); text-align: center;">
-                    <div style="font-size: 30px; font-weight: bold; color: #3b82f6;">{period_stats['days']}</div>
+                    <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #3b82f6;">{period_stats['days']}</div>
                     <div style="font-size: 14px; opacity: 0.8; margin-top: 5px;">Dagen</div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -3402,7 +3415,7 @@ def main():
                 st.markdown(f"""
                 <div style="background: rgba(16, 185, 129, 0.2); padding: 15px; border-radius: 8px; 
                             border: 1px solid rgba(16, 185, 129, 0.3); text-align: center;">
-                    <div style="font-size: 30px; font-weight: bold; color: #10b981;">{period_stats['total_workouts']}</div>
+                    <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #10b981;">{period_stats['total_workouts']}</div>
                     <div style="font-size: 14px; opacity: 0.8; margin-top: 5px;">Trainingen</div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -3412,7 +3425,7 @@ def main():
                 st.markdown(f"""
                 <div style="background: rgba(249, 115, 22, 0.2); padding: 15px; border-radius: 8px; 
                             border: 1px solid rgba(249, 115, 22, 0.3); text-align: center;">
-                    <div style="font-size: 30px; font-weight: bold; color: #f97316;">{avg_cals_per_day:.0f}</div>
+                    <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #f97316;">{avg_cals_per_day:.0f}</div>
                     <div style="font-size: 14px; opacity: 0.8; margin-top: 5px;">Ø Calorieën/dag</div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -3422,7 +3435,7 @@ def main():
                 st.markdown(f"""
                 <div style="background: rgba(139, 92, 246, 0.2); padding: 15px; border-radius: 8px; 
                             border: 1px solid rgba(139, 92, 246, 0.3); text-align: center;">
-                    <div style="font-size: 30px; font-weight: bold; color: #8b5cf6;">{avg_protein_per_day:.0f}g</div>
+                    <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #8b5cf6;">{avg_protein_per_day:.0f}g</div>
                     <div style="font-size: 14px; opacity: 0.8; margin-top: 5px;">Ø Eiwit/dag</div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -3848,8 +3861,8 @@ def main():
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
                         text-align: center; height: 120px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🔥 Calorieën</div>
-                <div style="font-size: 30px; font-weight: bold; color: #fb923c; margin: 12px 0;">{totals['calorien']:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🔥 Calorieën</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #fb923c; margin: 12px 0;">{totals['calorien']:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
             </div>
             """, unsafe_allow_html=True)
         with col2:
@@ -3857,8 +3870,8 @@ def main():
             <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
                         text-align: center; height: 120px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">💪 Eiwit</div>
-                <div style="font-size: 30px; font-weight: bold; color: #60a5fa; margin: 12px 0;">{totals['eiwit']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">💪 Eiwit</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #60a5fa; margin: 12px 0;">{totals['eiwit']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
             </div>
             """, unsafe_allow_html=True)
         with col3:
@@ -3866,8 +3879,8 @@ def main():
             <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(74, 222, 128, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);
                         text-align: center; height: 120px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🌾 Koolhydraten</div>
-                <div style="font-size: 30px; font-weight: bold; color: #34d399; margin: 12px 0;">{totals['koolhydraten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🌾 Koolhydraten</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #34d399; margin: 12px 0;">{totals['koolhydraten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
             </div>
             """, unsafe_allow_html=True)
         with col4:
@@ -3875,8 +3888,8 @@ def main():
             <div style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(250, 204, 21, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(234, 179, 8, 0.3);
                         text-align: center; height: 120px; box-sizing: border-box;">
-                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🥑 Vetten</div>
-                <div style="font-size: 30px; font-weight: bold; color: #facc15; margin: 12px 0;">{totals['vetten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🥑 Vetten</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #facc15; margin: 12px 0;">{totals['vetten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -4021,9 +4034,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(251, 113, 133, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(236, 72, 153, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🏃 Sessies</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #f472b6; margin: 12px 0;">{len(cardio)}</div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🏃 Sessies</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #f472b6; margin: 12px 0;">{len(cardio)}</div>
                         <div style="display: inline-block; background: {sessions_badge_bg}; border: 1px solid {sessions_badge_border}; 
                                     padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: {sessions_color}; margin-top: 8px;">
                             {sessions_arrow} {sessions_change:+d} vs vorige week
@@ -4039,9 +4052,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">📏 Afstand</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #60a5fa; margin: 12px 0;">{total_distance:.1f}<span style="font-size: 16px; opacity: 0.7;"> km</span></div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">📏 Afstand</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #60a5fa; margin: 12px 0;">{total_distance:.1f}<span style="font-size: 16px; opacity: 0.7;"> km</span></div>
                         {comparison_badge}
                     </div>
                     """, unsafe_allow_html=True)
@@ -4051,9 +4064,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🔥 Calorieën</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #fb923c; margin: 12px 0;">{total_cardio_cals:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🔥 Calorieën</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #fb923c; margin: 12px 0;">{total_cardio_cals:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
                         <div style="min-height: 18px;"></div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4265,9 +4278,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(74, 222, 128, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">👣 Totaal Stappen</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #4ade80; margin: 12px 0;">{total_steps:,.0f}</div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">👣 Totaal Stappen</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #4ade80; margin: 12px 0;">{total_steps:,.0f}</div>
                         <div style="font-size: 12px; opacity: 0.7;">~{steps_calories:.0f} kcal verbrand</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4276,9 +4289,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">📊 Gemiddeld/Dag</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #60a5fa; margin: 12px 0;">{avg_steps:,.0f}</div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">📊 Gemiddeld/Dag</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #60a5fa; margin: 12px 0;">{avg_steps:,.0f}</div>
                         <div style="font-size: 12px; opacity: 0.7;">{len(period_stappen)} dagen getracked</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4287,9 +4300,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(192, 132, 252, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🚶 Excl. Cardio</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #c084fc; margin: 12px 0;">{non_cardio_steps_combined:,.0f}</div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🚶 Excl. Cardio</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #c084fc; margin: 12px 0;">{non_cardio_steps_combined:,.0f}</div>
                         <div style="font-size: 12px; opacity: 0.7;">Ø {avg_non_cardio:,.0f}/dag</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4303,9 +4316,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🎯 Doel Progressie</div>
-                        <div style="font-size: 30px; font-weight: bold; color: {goal_color}; margin: 12px 0;">{goal_progress:.0f}%</div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🎯 Doel Progressie</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: {goal_color}; margin: 12px 0;">{goal_progress:.0f}%</div>
                         <div style="font-size: 12px; opacity: 0.7;">Doel: {goal_steps:,} stappen/dag</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4546,9 +4559,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(167, 139, 250, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">💪 Oefeningen</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #a78bfa; margin: 12px 0;">{len(strength)}</div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">💪 Oefeningen</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #a78bfa; margin: 12px 0;">{len(strength)}</div>
                         <div style="display: inline-block; background: {sessions_badge_bg}; border: 1px solid {sessions_badge_border}; 
                                     padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: {sessions_color}; margin-top: 8px;">
                             {sessions_arrow} {sessions_change:+d} vs vorige week
@@ -4564,9 +4577,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🏋️ Volume</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #60a5fa; margin: 12px 0;">{total_volume:.0f}<span style="font-size: 16px; opacity: 0.7;"> kg</span></div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🏋️ Volume</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #60a5fa; margin: 12px 0;">{total_volume:.0f}<span style="font-size: 16px; opacity: 0.7;"> kg</span></div>
                         {comparison_badge}
                     </div>
                     """, unsafe_allow_html=True)
@@ -4575,9 +4588,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🔥 Calorieën</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #fb923c; margin: 12px 0;">{strength_cals_total:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🔥 Calorieën</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #fb923c; margin: 12px 0;">{strength_cals_total:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
                         <div style="min-height: 18px;"></div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4587,9 +4600,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(74, 222, 128, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">🎯 Variatie</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #4ade80; margin: 12px 0;">{unique_exercises}</div>
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🎯 Variatie</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #4ade80; margin: 12px 0;">{unique_exercises}</div>
                         <div style="min-height: 18px;"></div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4775,9 +4788,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; display: flex; flex-direction: column; justify-content: center;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">📊 Huidig Gewicht</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #818cf8; margin-bottom: 5px;">{current_weight:.1f} kg</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #818cf8; margin-bottom: 5px;">{current_weight:.1f} kg</div>
                         <div style="font-size: 11px; color: {change_color}; font-weight: bold;">
                             {change_icon} {week_weight_change:+.1f} kg
                         </div>
@@ -4794,9 +4807,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; display: flex; flex-direction: column; justify-content: center;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">📉 Vet %</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #fbbf24; margin-bottom: 5px;">{current_fat:.1f}%</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #fbbf24; margin-bottom: 5px;">{current_fat:.1f}%</div>
                         <div style="font-size: 11px; color: {change_color}; font-weight: bold;">
                             {change_icon} {week_fat_change:+.1f}%
                         </div>
@@ -4808,7 +4821,7 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(156, 163, 175, 0.2), rgba(107, 114, 128, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(156, 163, 175, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; display: flex; flex-direction: column; justify-content: center;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">📉 Vet %</div>
                         <div style="font-size: 24px; font-weight: bold; color: #9ca3af; margin-bottom: 5px;">Geen data</div>
                         <div style="font-size: 11px; color: #6b7280;">
@@ -4827,9 +4840,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; display: flex; flex-direction: column; justify-content: center;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">💪 Spiermassa</div>
-                        <div style="font-size: 30px; font-weight: bold; color: #4ade80; margin-bottom: 5px;">{current_muscle:.1f} kg</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #4ade80; margin-bottom: 5px;">{current_muscle:.1f} kg</div>
                         <div style="font-size: 11px; color: {change_color}; font-weight: bold;">
                             {change_icon} {week_muscle_change:+.1f} kg
                         </div>
@@ -4841,7 +4854,7 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(156, 163, 175, 0.2), rgba(107, 114, 128, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(156, 163, 175, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; display: flex; flex-direction: column; justify-content: center;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">💪 Spiermassa</div>
                         <div style="font-size: 24px; font-weight: bold; color: #9ca3af; margin-bottom: 5px;">Geen data</div>
                         <div style="font-size: 11px; color: #6b7280;">
@@ -4878,9 +4891,9 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(167, 139, 250, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);
-                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                                text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; display: flex; flex-direction: column; justify-content: center;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">{status_icon} Target Voortgang</div>
-                        <div style="font-size: 30px; font-weight: bold; color: {status_color}; margin-bottom: 5px;">{display_weight:.1f} kg</div>
+                        <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: {status_color}; margin-bottom: 5px;">{display_weight:.1f} kg</div>
                         <div style="font-size: 11px; font-weight: bold; color: {status_color};">
                             {status_text}
                         </div>
@@ -4920,7 +4933,7 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.2)); 
                                 padding: 18px; border-radius: 10px; border-left: 4px solid #6366f1;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">{gewicht_icon} Gewicht Projectie</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">{gewicht_icon} Gewicht Projectie</div>
                         <div style="font-size: 28px; font-weight: bold; margin-bottom: 10px;">
                             {summary['projected_gewicht']:.1f} kg
                         </div>
@@ -4942,7 +4955,7 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2)); 
                                 padding: 18px; border-radius: 10px; border-left: 4px solid #f59e0b;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">{vet_icon} Vet % Projectie</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">{vet_icon} Vet % Projectie</div>
                         <div style="font-size: 28px; font-weight: bold; margin-bottom: 10px;">
                             {summary['projected_vet']:.1f}%
                         </div>
@@ -4964,7 +4977,7 @@ def main():
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.2)); 
                                 padding: 18px; border-radius: 10px; border-left: 4px solid #22c55e;">
-                        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">{spier_icon} Spiermassa Projectie</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">{spier_icon} Spiermassa Projectie</div>
                         <div style="font-size: 28px; font-weight: bold; margin-bottom: 10px;">
                             {summary['projected_spier']:.1f} kg
                         </div>
@@ -5906,5 +5919,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
