@@ -1014,7 +1014,7 @@ def analyze_measurements(metingen_df):
     
     return trends
 
-def calculate_body_projections(metingen_df, weeks_ahead=4):
+def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=None):
     """
     Calculate body composition projections using linear regression
     Returns projections for weight, fat%, and muscle mass
@@ -1138,7 +1138,8 @@ def calculate_body_projections(metingen_df, weeks_ahead=4):
         spier_confidence = spier_reg.rvalue ** 2
         
         # Calculate changes from current to end of projection
-        current_gewicht = gewicht_vals[-1]
+        # Use current daily weight if provided, otherwise use latest measurement
+        current_gewicht = current_daily_weight if current_daily_weight is not None else gewicht_vals[-1]
         current_vet = vet_vals[-1]
         current_spier = spier_vals[-1]
         
@@ -4518,7 +4519,8 @@ def main():
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
         
         if not metingen_df.empty:
-            projections = calculate_body_projections(metingen_df, weeks_ahead=4)
+            # Pass current daily weight for accurate projection calculations
+            projections = calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=current_weight)
             
             if projections and 'error' not in projections:
                 # Create projection visualization
