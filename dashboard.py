@@ -2278,11 +2278,11 @@ def main():
     # DEBUG: Verify code version deployed (commit ef4871e)
     print(f"DEBUG: current_username defined = '{current_username}' (commit ef4871e)")
     
-    # TAB 0: VANDAAG (Quick Add Dashboard)
+    # TAB 0: DASHBOARD (Redesigned Command Center)
     with tab0:
-        st.title("🎯 Vandaag")
+        st.title("💪 Dashboard")
         today = datetime.now()
-        st.markdown(f"<p style='font-size: 14px; opacity: 0.7; margin-top: -10px; margin-bottom: 20px;'>{format_date_dutch(today)}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size: 14px; opacity: 0.7; margin-top: -10px; margin-bottom: 15px;'>{format_date_dutch(today)}</p>", unsafe_allow_html=True)
         
         # Get today's data for real-time progress
         today_str = today.strftime('%d/%m/%Y')
@@ -2291,14 +2291,188 @@ def main():
         nutrition_df = data.get('voeding', pd.DataFrame())
         gewicht_df = data.get('gewicht', pd.DataFrame())
         stappen_df = data.get('stappen', pd.DataFrame())
+        activities_df = data.get('activiteiten', pd.DataFrame())
         
         # Calculate today's totals
         current_nutrition = calculate_nutrition_totals(nutrition_df, today_str)
         if sum(current_nutrition.values()) == 0:
             current_nutrition = calculate_nutrition_totals(nutrition_df, today_str_dash)
         
-        # SECTION 1: REAL-TIME PROGRESS NAAR TARGETS (Compact cards)
-        st.markdown("### 📊 Je Voortgang Vandaag")
+        # Get current weight and goal
+        current_weight = targets.get('weight', 106.2)
+        if not gewicht_df.empty and 'datum' in gewicht_df.columns and 'gewicht' in gewicht_df.columns:
+            gewicht_daily = gewicht_df.copy()
+            gewicht_daily['date_obj'] = pd.to_datetime(gewicht_daily['datum'], dayfirst=True, errors='coerce')
+            gewicht_daily = gewicht_daily.dropna(subset=['date_obj', 'gewicht'])
+            gewicht_daily = gewicht_daily.sort_values('date_obj')
+            if len(gewicht_daily) > 0:
+                current_weight = float(gewicht_daily.iloc[-1]['gewicht'])
+        
+        target_weight = targets.get('target_weight', 85.0)
+        
+        # Calculate BMR and total expenditure for today
+        calories_burned, _ = calculate_total_calories_burned(activities_df, today_str)
+        today_stappen = 0
+        if not stappen_df.empty:
+            today_stappen_row = stappen_df[stappen_df['datum'].isin([today_str, today_str_dash])]
+            if not today_stappen_row.empty:
+                today_stappen = today_stappen_row['stappen'].sum()
+        
+        walking_steps_from_sport = calculate_walking_steps_from_activities(activities_df, today_str)
+        casual_steps = max(0, today_stappen - walking_steps_from_sport)
+        
+        bmr = calculate_bmr(current_weight, height_cm=180, age=30, gender='male')
+        steps_calories = calculate_steps_calories(casual_steps, current_weight)
+        total_expenditure = bmr + steps_calories + calories_burned
+        
+        # Calculate net calories (deficit/surplus)
+        net_calories = current_nutrition['calorien'] - total_expenditure
+        target_deficit = -500  # Target: 500 kcal deficit per day for healthy weight loss
+        
+        # ============================================
+        # 🎯 HERO SECTION: YOUR MISSION
+        # ============================================
+        st.markdown("### 🎯 Je Missie")
+        
+        # Calculate goal stats
+        weight_to_go = current_weight - target_weight
+        days_until_2026 = (datetime(2025, 12, 31) - today).days
+        required_weekly_loss = (weight_to_go / (days_until_2026 / 7)) if days_until_2026 > 0 else 0
+        
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); 
+                    padding: 25px; border-radius: 15px; margin-bottom: 20px; color: white;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <div style="font-size: 16px; opacity: 0.9; margin-bottom: 8px;">🎯 Doel: <100 kg op 31 december 2025</div>
+                    <div style="font-size: 42px; font-weight: bold; margin: 10px 0;">
+                        {weight_to_go:.1f} kg te gaan
+                    </div>
+                    <div style="font-size: 14px; opacity: 0.8;">
+                        📅 {days_until_2026} dagen over • 📉 ~{required_weekly_loss:.2f} kg/week nodig
+                    </div>
+                </div>
+                <div style="flex: 1; text-align: right;">
+                    <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">Huidige gewicht</div>
+                    <div style="font-size: 48px; font-weight: bold;">{current_weight:.1f}</div>
+                    <div style="font-size: 14px; opacity: 0.8;">kg</div>
+                </div>
+            </div>
+            
+            <!-- Progress bar -->
+            <div style="margin-top: 20px;">
+                <div style="background: rgba(255,255,255,0.2); height: 12px; border-radius: 6px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #22c55e, #10b981); height: 100%; 
+                                width: {min(100, max(0, (1 - weight_to_go/20)*100)):.1f}%; transition: width 0.3s;">
+                    </div>
+                </div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px; text-align: right;">
+                    {min(100, max(0, (1 - weight_to_go/20)*100)):.0f}% behaald
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # ============================================
+        # 🔥 VANDAAG SECTION: TODAY'S STATUS
+        # ============================================
+        st.markdown("### 🔥 Vandaag")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Net calories card
+            is_deficit = net_calories < 0
+            deficit_vs_target = net_calories - target_deficit
+            status_color = "#22c55e" if is_deficit else "#ef4444"
+            status_icon = "✅" if is_deficit else "⚠️"
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.1)); 
+                        padding: 20px; border-radius: 12px; border-left: 4px solid #f97316; height: 140px;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🔥 Netto Calorieën</div>
+                <div style="font-size: 36px; font-weight: bold; color: {status_color}; margin: 8px 0;">
+                    {net_calories:+.0f}
+                </div>
+                <div style="font-size: 12px; opacity: 0.7;">
+                    Doel: {target_deficit:+.0f} kcal/dag
+                </div>
+                <div style="font-size: 11px; margin-top: 8px; color: {status_color};">
+                    {status_icon} {abs(deficit_vs_target):.0f} kcal {'onder' if deficit_vs_target < 0 else 'boven'} doel
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            # Activity status
+            workout_today = len(activities_df[activities_df['datum'] == today_str]) if not activities_df.empty else 0
+            workout_color = "#22c55e" if workout_today > 0 else "#94a3b8"
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.1)); 
+                        padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6; height: 140px;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🏋️ Training Vandaag</div>
+                <div style="font-size: 36px; font-weight: bold; color: {workout_color}; margin: 8px 0;">
+                    {workout_today}
+                </div>
+                <div style="font-size: 12px; opacity: 0.7;">
+                    {calories_burned:.0f} kcal verbrand
+                </div>
+                <div style="font-size: 11px; margin-top: 8px; opacity: 0.7;">
+                    🚶 {today_stappen:,.0f} stappen ({steps_calories:.0f} kcal)
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            # Calculate deficit streak
+            deficit_streak = 0
+            if not nutrition_df.empty and not activities_df.empty:
+                # Go back day by day and check if deficit
+                for i in range(30):  # Check last 30 days
+                    check_date = today - timedelta(days=i)
+                    check_str = check_date.strftime('%d/%m/%Y')
+                    day_nutrition = calculate_nutrition_totals(nutrition_df, check_str)
+                    day_burned, _ = calculate_total_calories_burned(activities_df, check_str)
+                    
+                    # Get steps for that day
+                    day_stappen = 0
+                    if not stappen_df.empty:
+                        day_stappen_row = stappen_df[stappen_df['datum'] == check_str]
+                        if not day_stappen_row.empty:
+                            day_stappen = day_stappen_row['stappen'].sum()
+                    
+                    day_steps_cal = calculate_steps_calories(day_stappen, current_weight)
+                    day_total_exp = bmr + day_steps_cal + day_burned
+                    day_net = day_nutrition['calorien'] - day_total_exp
+                    
+                    if day_net < 0:
+                        deficit_streak += 1
+                    else:
+                        break
+            
+            streak_color = "#22c55e" if deficit_streak >= 3 else "#fbbf24" if deficit_streak > 0 else "#94a3b8"
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1)); 
+                        padding: 20px; border-radius: 12px; border-left: 4px solid #22c55e; height: 140px;">
+                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">� Deficit Streak</div>
+                <div style="font-size: 36px; font-weight: bold; color: {streak_color}; margin: 8px 0;">
+                    {deficit_streak}
+                </div>
+                <div style="font-size: 12px; opacity: 0.7;">
+                    {"dagen op rij!" if deficit_streak > 0 else "Start vandaag!"}
+                </div>
+                <div style="font-size: 11px; margin-top: 8px; opacity: 0.7;">
+                    {"🔥 Keep it up!" if deficit_streak >= 7 else "💪 Blijf doorgaan!" if deficit_streak >= 3 else "🎯 Elke dag telt!"}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # SECTION 2: MACRO PROGRESS (Compact cards)
+        st.markdown("### 📊 Macro's Vandaag")
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -2725,6 +2899,118 @@ def main():
                 st.info("⏰ Nog geen maaltijden gelogd vandaag. Begin met invoeren!")
         else:
             st.info("📝 Geen voeding data beschikbaar.")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # SECTION 4: WEEK OVERVIEW
+        st.markdown("### 📅 Deze Week")
+        
+        # Calculate last 7 days stats
+        week_data = []
+        for i in range(6, -1, -1):  # Last 7 days (6 days ago to today)
+            day = today - timedelta(days=i)
+            day_str = day.strftime('%d/%m/%Y')
+            day_str_dash = day.strftime('%d-%m-%Y')
+            
+            # Get nutrition for that day
+            day_nutrition = calculate_nutrition_totals(nutrition_df, day_str)
+            if sum(day_nutrition.values()) == 0:
+                day_nutrition = calculate_nutrition_totals(nutrition_df, day_str_dash)
+            
+            # Get activities and steps
+            day_burned, _ = calculate_total_calories_burned(activities_df, day_str)
+            day_stappen = 0
+            if not stappen_df.empty:
+                day_stappen_row = stappen_df[stappen_df['datum'].isin([day_str, day_str_dash])]
+                if not day_stappen_row.empty:
+                    day_stappen = day_stappen_row['stappen'].sum()
+            
+            # Calculate walking steps from sport
+            day_walking_steps = calculate_walking_steps_from_activities(activities_df, day_str)
+            day_casual_steps = max(0, day_stappen - day_walking_steps)
+            day_steps_cal = calculate_steps_calories(day_casual_steps, current_weight)
+            day_total_exp = bmr + day_steps_cal + day_burned
+            
+            day_net = day_nutrition['calorien'] - day_total_exp
+            
+            # Count workouts
+            day_workouts = 0
+            if not activities_df.empty:
+                day_workouts = len(activities_df[activities_df['datum'] == day_str])
+            
+            week_data.append({
+                'day': day.strftime('%a'),
+                'date': day.strftime('%d/%m'),
+                'net': day_net,
+                'is_deficit': day_net < 0,
+                'workouts': day_workouts,
+                'is_today': i == 0
+            })
+        
+        # Create visual week calendar
+        cols_week = st.columns(7)
+        for i, day_info in enumerate(week_data):
+            with cols_week[i]:
+                bg_color = "rgba(34, 197, 94, 0.2)" if day_info['is_deficit'] else "rgba(239, 68, 68, 0.2)"
+                border_color = "#22c55e" if day_info['is_deficit'] else "#ef4444"
+                
+                if day_info['is_today']:
+                    bg_color = "rgba(99, 102, 241, 0.3)"
+                    border_color = "#6366f1"
+                
+                workout_badge = f"<div style='margin-top: 5px; font-size: 11px;'>{'🏋️' * day_info['workouts']}</div>" if day_info['workouts'] > 0 else ""
+                
+                st.markdown(f"""
+                <div style="background: {bg_color}; padding: 10px; border-radius: 8px; 
+                            border: 2px solid {border_color}; text-align: center; height: 100px;">
+                    <div style="font-size: 11px; font-weight: bold; opacity: 0.8;">{day_info['day']}</div>
+                    <div style="font-size: 10px; opacity: 0.6; margin-bottom: 5px;">{day_info['date']}</div>
+                    <div style="font-size: 18px; font-weight: bold; color: {border_color};">
+                        {day_info['net']:+.0f}
+                    </div>
+                    <div style="font-size: 10px; opacity: 0.7;">kcal</div>
+                    {workout_badge}
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Week summary stats
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
+        
+        total_deficit = sum([d['net'] for d in week_data if d['is_deficit']])
+        deficit_days = sum([1 for d in week_data if d['is_deficit']])
+        total_workouts = sum([d['workouts'] for d in week_data])
+        avg_net = sum([d['net'] for d in week_data]) / 7
+        
+        with col_sum1:
+            st.metric(
+                label="📉 Totaal Deficit",
+                value=f"{total_deficit:.0f} kcal",
+                delta=f"{deficit_days} dagen deficit" if deficit_days > 0 else "Geen deficit"
+            )
+        
+        with col_sum2:
+            st.metric(
+                label="🏋️ Trainingen",
+                value=f"{total_workouts}",
+                delta="deze week"
+            )
+        
+        with col_sum3:
+            expected_weight_loss = abs(total_deficit) / 7700  # 7700 kcal = 1 kg vet
+            st.metric(
+                label="⚖️ Verwacht Verlies",
+                value=f"{expected_weight_loss:.2f} kg",
+                delta="bij deficit"
+            )
+        
+        with col_sum4:
+            st.metric(
+                label="📊 Gemiddeld/dag",
+                value=f"{avg_net:+.0f} kcal",
+                delta="✅" if avg_net < 0 else "⚠️"
+            )
     
     # TAB 1: OVERZICHT (Analytics-only, geen dagelijkse input)
     with tab1:
