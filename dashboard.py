@@ -4414,6 +4414,20 @@ def main():
                         <div style="font-size: 9px; opacity: 0.6; margin-top: 2px;">gemiddelde trend</div>
                     </div>
                     """, unsafe_allow_html=True)
+                else:
+                    # Fallback when no body fat measurements
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, rgba(156, 163, 175, 0.2), rgba(107, 114, 128, 0.1)); 
+                                padding: 18px; border-radius: 12px; border: 1px solid rgba(156, 163, 175, 0.3);
+                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">📉 Vet %</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #9ca3af; margin-bottom: 5px;">Geen data</div>
+                        <div style="font-size: 11px; color: #6b7280;">
+                            → Voeg metingen toe
+                        </div>
+                        <div style="font-size: 9px; opacity: 0.6; margin-top: 2px;">in Data Invoer tab</div>
+                    </div>
+                    """, unsafe_allow_html=True)
             
             # CARD 3: Spiermassa (with week-over-week from projections)
             with col3:
@@ -4433,6 +4447,20 @@ def main():
                         <div style="font-size: 9px; opacity: 0.6; margin-top: 2px;">gemiddelde trend</div>
                     </div>
                     """, unsafe_allow_html=True)
+                else:
+                    # Fallback when no muscle mass measurements
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, rgba(156, 163, 175, 0.2), rgba(107, 114, 128, 0.1)); 
+                                padding: 18px; border-radius: 12px; border: 1px solid rgba(156, 163, 175, 0.3);
+                                text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">💪 Spiermassa</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #9ca3af; margin-bottom: 5px;">Geen data</div>
+                        <div style="font-size: 11px; color: #6b7280;">
+                            → Voeg metingen toe
+                        </div>
+                        <div style="font-size: 9px; opacity: 0.6; margin-top: 2px;">in Data Invoer tab</div>
+                    </div>
+                    """, unsafe_allow_html=True)
             
             # CARD 4: Progress to Goal
             with col4:
@@ -4441,16 +4469,29 @@ def main():
                     weight_to_go = current_weight - target_weight
                     progress_pct = min(100, max(0, (1 - (weight_to_go / 20)) * 100))  # Assuming ~20kg total to lose
                     
-                    status_icon = "🎯" if weight_to_go > 0 else "✅"
-                    status_text = "te gaan" if weight_to_go > 0 else "bereikt!"
-                    status_color = "#fbbf24" if weight_to_go > 0 else "#22c55e"
+                    # Fix the logic here: if weight_to_go > 0, you're ABOVE target
+                    if weight_to_go > 0.1:  # Still above target (with small buffer)
+                        status_icon = "🎯"
+                        status_text = "te gaan"
+                        status_color = "#fbbf24"
+                        display_weight = weight_to_go
+                    elif weight_to_go < -0.1:  # Below target
+                        status_icon = "⚠️"
+                        status_text = "onder doel"
+                        status_color = "#ef4444" 
+                        display_weight = abs(weight_to_go)
+                    else:  # At target (within 0.1kg)
+                        status_icon = "✅"
+                        status_text = "bereikt!"
+                        status_color = "#22c55e"
+                        display_weight = 0
                     
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(167, 139, 250, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);
                                 text-align: center; height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 5px;">{status_icon} Target Voortgang</div>
-                        <div style="font-size: 30px; font-weight: bold; color: {status_color}; margin-bottom: 5px;">{abs(weight_to_go):.1f} kg</div>
+                        <div style="font-size: 30px; font-weight: bold; color: {status_color}; margin-bottom: 5px;">{display_weight:.1f} kg</div>
                         <div style="font-size: 11px; font-weight: bold; color: {status_color};">
                             {status_text}
                         </div>
