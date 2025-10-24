@@ -2388,16 +2388,23 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.1)); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #f97316; height: 140px;">
-                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🔥 Netto Calorieën</div>
-                <div style="font-size: 36px; font-weight: bold; color: {status_color}; margin: 8px 0;">
-                    {net_calories:+.0f}
+                        padding: 18px; border-radius: 12px; border-left: 4px solid #f97316; 
+                        min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px;">
+                        🔥 Netto Calorieën
+                    </div>
+                    <div style="font-size: 32px; font-weight: bold; color: {status_color}; margin: 5px 0; line-height: 1.2;">
+                        {net_calories:+.0f}
+                    </div>
                 </div>
-                <div style="font-size: 12px; opacity: 0.7;">
-                    Doel: {target_deficit:+.0f} kcal/dag
-                </div>
-                <div style="font-size: 11px; margin-top: 8px; color: {status_color};">
-                    {status_icon} {abs(deficit_vs_target):.0f} kcal {'onder' if deficit_vs_target < 0 else 'boven'} doel
+                <div>
+                    <div style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
+                        Doel: {target_deficit:+.0f} kcal/dag
+                    </div>
+                    <div style="font-size: 10px; color: {status_color}; font-weight: 600;">
+                        {status_icon} {abs(deficit_vs_target):.0f} kcal {'onder' if deficit_vs_target < 0 else 'boven'}
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -2409,22 +2416,29 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.1)); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6; height: 140px;">
-                <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">🏋️ Training Vandaag</div>
-                <div style="font-size: 36px; font-weight: bold; color: {workout_color}; margin: 8px 0;">
-                    {workout_today}
+                        padding: 18px; border-radius: 12px; border-left: 4px solid #3b82f6; 
+                        min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="font-size: 12px; opacity: 0.8; margin-bottom: 8px;">
+                        🏋️ Training Vandaag
+                    </div>
+                    <div style="font-size: 32px; font-weight: bold; color: {workout_color}; margin: 5px 0; line-height: 1.2;">
+                        {workout_today}
+                    </div>
                 </div>
-                <div style="font-size: 12px; opacity: 0.7;">
-                    {calories_burned:.0f} kcal verbrand
-                </div>
-                <div style="font-size: 11px; margin-top: 8px; opacity: 0.7;">
-                    🚶 {today_stappen:,.0f} stappen ({steps_calories:.0f} kcal)
+                <div>
+                    <div style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
+                        {calories_burned:.0f} kcal verbrand
+                    </div>
+                    <div style="font-size: 10px; opacity: 0.7;">
+                        🚶 {today_stappen:,.0f} stappen ({steps_calories:.0f} kcal)
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
-            # Calculate deficit streak
+            # Calculate Deficit Streak
             deficit_streak = 0
             if not nutrition_df.empty and not activities_df.empty:
                 # Go back day by day and check if deficit
@@ -2454,7 +2468,7 @@ def main():
             
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.1)); 
-                        padding: 20px; border-radius: 12px; border-left: 4px solid #22c55e; height: 140px;">
+                        padding: 20px; border-radius: 12px; border-left: 4px solid #22c55e; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 13px; opacity: 0.8; margin-bottom: 5px;">� Deficit Streak</div>
                 <div style="font-size: 36px; font-weight: bold; color: {streak_color}; margin: 8px 0;">
                     {deficit_streak}
