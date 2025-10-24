@@ -2339,12 +2339,12 @@ def main():
         days_until_2026 = (datetime(2025, 12, 31) - today).days
         required_weekly_loss = (weight_to_go / (days_until_2026 / 7)) if days_until_2026 > 0 else 0
         
-        st.markdown(f"""
+        hero_html = f"""
         <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); 
                     padding: 25px; border-radius: 15px; margin-bottom: 20px; color: white;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="flex: 1;">
-                    <div style="font-size: 16px; opacity: 0.9; margin-bottom: 8px;">🎯 Doel: <100 kg op 31 december 2025</div>
+                    <div style="font-size: 16px; opacity: 0.9; margin-bottom: 8px;">🎯 Doel: onder 100 kg op 31 december 2025</div>
                     <div style="font-size: 42px; font-weight: bold; margin: 10px 0;">
                         {weight_to_go:.1f} kg te gaan
                     </div>
@@ -2358,8 +2358,6 @@ def main():
                     <div style="font-size: 14px; opacity: 0.8;">kg</div>
                 </div>
             </div>
-            
-            <!-- Progress bar -->
             <div style="margin-top: 20px;">
                 <div style="background: rgba(255,255,255,0.2); height: 12px; border-radius: 6px; overflow: hidden;">
                     <div style="background: linear-gradient(90deg, #22c55e, #10b981); height: 100%; 
@@ -2371,7 +2369,8 @@ def main():
                 </div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(hero_html, unsafe_allow_html=True)
         
         # ============================================
         # 🔥 VANDAAG SECTION: TODAY'S STATUS
