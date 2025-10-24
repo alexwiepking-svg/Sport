@@ -1776,7 +1776,7 @@ def main():
                     'carbs': 180,
                     'fats': 60,
                     'weight': 106.2,
-                    'target_weight': 85.0
+                    'target_weight': 100.0  # Goal: <100 kg by end of year
                 }
         except Exception as e:
             # Fallback to defaults if loading fails
@@ -1786,7 +1786,7 @@ def main():
                 'carbs': 180,
                 'fats': 60,
                 'weight': 106.2,
-                'target_weight': 85.0
+                'target_weight': 100.0  # Goal: <100 kg by end of year
             }
     
     # Also keep a reference in the old location for compatibility
@@ -2004,7 +2004,7 @@ def main():
             with col3:
                 new_weight = st.number_input("Huidig Gewicht (kg)", min_value=50.0, max_value=200.0, value=targets['weight'], step=0.1, key="weight_input")
             with col4:
-                new_target_weight = st.number_input("Doel Gewicht (kg)", min_value=50.0, max_value=200.0, value=targets.get('target_weight', 85.0), step=0.1, key="target_weight_input")
+                new_target_weight = st.number_input("Doel Gewicht (kg)", min_value=50.0, max_value=200.0, value=targets.get('target_weight', 100.0), step=0.1, key="target_weight_input")
             
             if st.button("💾 Doelen Opslaan", use_container_width=True):
                 # Save to user-specific targets
@@ -2308,7 +2308,7 @@ def main():
             if len(gewicht_daily) > 0:
                 current_weight = float(gewicht_daily.iloc[-1]['gewicht'])
         
-        target_weight = targets.get('target_weight', 85.0)
+        target_weight = targets.get('target_weight', 100.0)  # Goal: <100 kg
         
         # Calculate BMR and total expenditure for today
         calories_burned, _ = calculate_total_calories_burned(activities_df, today_str)

@@ -250,7 +250,7 @@ def save_goals(username: str, goals: Dict[str, Any], sheet_id: Optional[str] = N
         'carbs': 180,
         'fats': 60,
         'weight': 106.2,
-        'target_weight': 85.0
+        'target_weight': 100.0
     }
     """
     try:
@@ -330,7 +330,7 @@ def load_goals(username: str, sheet_id: Optional[str] = None) -> Optional[Dict[s
                 'carbs': int(float(row_data[3])) if len(row_data) > 3 and row_data[3] else 180,
                 'fats': int(float(row_data[4])) if len(row_data) > 4 and row_data[4] else 60,
                 'weight': float(row_data[5]) if len(row_data) > 5 and row_data[5] else 106.2,
-                'target_weight': float(row_data[6]) if len(row_data) > 6 and row_data[6] else 85.0
+                'target_weight': float(row_data[6]) if len(row_data) > 6 and row_data[6] else 100.0
             }
             return goals
         except:
