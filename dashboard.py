@@ -1014,10 +1014,13 @@ def analyze_measurements(metingen_df):
     
     return trends
 
-def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=None):
+def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=None, gewicht_df=None):
     """
     Calculate body composition projections using linear regression
     Returns projections for weight, fat%, and muscle mass
+    
+    Args:
+        gewicht_df: Daily weight tracking data for more accurate weight projections
     """
     if metingen_df.empty:
         return None
@@ -1117,29 +1120,63 @@ def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=
         vet_vals = np.array([float(vet_pct[date_cols[i]].values[0]) for i in parsed_indices])
         spier_vals = np.array([float(spier[date_cols[i]].values[0]) for i in parsed_indices])
         
-        # Perform linear regression for each metric
-        gewicht_reg = linregress(days, gewicht_vals)
+        # For WEIGHT: use daily data if available (more accurate than sparse official measurements)
+        if gewicht_df is not None and not gewicht_df.empty and 'datum' in gewicht_df.columns and 'gewicht' in gewicht_df.columns:
+            try:
+                daily_weight = gewicht_df.copy()
+                daily_weight['date_obj'] = pd.to_datetime(daily_weight['datum'], dayfirst=True, errors='coerce')
+                daily_weight = daily_weight.dropna(subset=['date_obj', 'gewicht'])
+                daily_weight = daily_weight.sort_values('date_obj')
+                
+                if len(daily_weight) >= 3:  # Need at least 3 points for regression
+                    # Use daily weight data for projection (much more accurate)
+                    first_daily_date = daily_weight.iloc[0]['date_obj']
+                    daily_days = np.array([(d - first_daily_date).days for d in daily_weight['date_obj']])
+                    daily_weights = np.array([float(w) for w in daily_weight['gewicht']])
+                    
+                    # Perform regression on daily data
+                    gewicht_reg = linregress(daily_days, daily_weights)
+                    gewicht_confidence = gewicht_reg.rvalue ** 2
+                    
+                    # Calculate projection from last daily measurement
+                    last_daily_date = daily_weight.iloc[-1]['date_obj']
+                    projection_dates = [last_daily_date + timedelta(weeks=i+1) for i in range(weeks_ahead)]
+                    projection_days = np.array([(d - first_daily_date).days for d in projection_dates])
+                    gewicht_projected = gewicht_reg.slope * projection_days + gewicht_reg.intercept
+                    
+                    # Use latest daily weight as current
+                    current_gewicht = float(daily_weight.iloc[-1]['gewicht'])
+                    
+                    print(f"DEBUG: Using daily weight data - {len(daily_weight)} points, R²={gewicht_confidence:.3f}")
+                else:
+                    print(f"DEBUG: Not enough daily weight data ({len(daily_weight)} points), using official measurements")
+            except Exception as e:
+                print(f"DEBUG: Error using daily weight data: {e}, falling back to official measurements")
+        
+        # Perform linear regression for each metric (vet/spier still use official measurements)
+        if 'gewicht_reg' not in locals():  # Only if we didn't use daily data above
+            gewicht_reg = linregress(days, gewicht_vals)
+            gewicht_confidence = gewicht_reg.rvalue ** 2
+            # Calculate projection dates (weekly intervals for next X weeks)
+            last_date = dates[-1]
+            projection_dates = [last_date + timedelta(weeks=i+1) for i in range(weeks_ahead)]
+            projection_days = np.array([(d - first_date).days for d in projection_dates])
+            # Calculate projected values
+            gewicht_projected = gewicht_reg.slope * projection_days + gewicht_reg.intercept
+            
         vet_reg = linregress(days, vet_vals)
         spier_reg = linregress(days, spier_vals)
         
-        # Calculate projection dates (weekly intervals for next X weeks)
-        last_date = dates[-1]
-        projection_dates = [last_date + timedelta(weeks=i+1) for i in range(weeks_ahead)]
-        projection_days = np.array([(d - first_date).days for d in projection_dates])
-        
-        # Calculate projected values
-        gewicht_projected = gewicht_reg.slope * projection_days + gewicht_reg.intercept
         vet_projected = vet_reg.slope * projection_days + vet_reg.intercept
         spier_projected = spier_reg.slope * projection_days + spier_reg.intercept
         
-        # Calculate confidence (R² value - how well the line fits)
-        gewicht_confidence = gewicht_reg.rvalue ** 2
         vet_confidence = vet_reg.rvalue ** 2
         spier_confidence = spier_reg.rvalue ** 2
         
         # Calculate changes from current to end of projection
         # Use current daily weight if provided, otherwise use latest measurement
-        current_gewicht = current_daily_weight if current_daily_weight is not None else gewicht_vals[-1]
+        if 'current_gewicht' not in locals():  # If not set by daily data logic above
+            current_gewicht = current_daily_weight if current_daily_weight is not None else gewicht_vals[-1]
         current_vet = vet_vals[-1]
         current_spier = spier_vals[-1]
         
@@ -4519,8 +4556,13 @@ def main():
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
         
         if not metingen_df.empty:
-            # Pass current daily weight for accurate projection calculations
-            projections = calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=current_weight)
+            # Pass current daily weight and daily weight data for accurate projection calculations
+            projections = calculate_body_projections(
+                metingen_df, 
+                weeks_ahead=4, 
+                current_daily_weight=current_weight,
+                gewicht_df=data.get('gewicht', pd.DataFrame())
+            )
             
             if projections and 'error' not in projections:
                 # Create projection visualization
