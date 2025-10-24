@@ -946,9 +946,9 @@ def calculate_nutrition_totals(nutrition_df, date):
         date: Date string to filter by
         
     Returns:
-        dict: Nutrition totals with keys: calorien, eiwit, koolhydraten, vetten
+        dict: Nutrition totals with keys: calorien, eiwit, koolhydraten, vetten, vezels
     """
-    default_totals = {'calorien': 0, 'eiwit': 0, 'koolhydraten': 0, 'vetten': 0}
+    default_totals = {'calorien': 0, 'eiwit': 0, 'koolhydraten': 0, 'vetten': 0, 'vezels': 0}
     
     if nutrition_df is None or nutrition_df.empty or date is None:
         return default_totals
@@ -960,7 +960,8 @@ def calculate_nutrition_totals(nutrition_df, date):
             'calorien': float(day_data['calorien'].sum()) if 'calorien' in day_data else 0,
             'eiwit': float(day_data['eiwit'].sum()) if 'eiwit' in day_data else 0,
             'koolhydraten': float(day_data['koolhydraten'].sum()) if 'koolhydraten' in day_data else 0,
-            'vetten': float(day_data['vetten'].sum()) if 'vetten' in day_data else 0
+            'vetten': float(day_data['vetten'].sum()) if 'vetten' in day_data else 0,
+            'vezels': float(day_data['vezels'].sum()) if 'vezels' in day_data else 0
         }
         return totals
     except Exception as e:
@@ -1775,6 +1776,7 @@ def main():
                     'protein': 160,
                     'carbs': 180,
                     'fats': 60,
+                    'fiber': 30,  # Recommended: 25-35g per day
                     'weight': 106.2,
                     'target_weight': 100.0  # Goal: <100 kg by end of year
                 }
@@ -1785,6 +1787,7 @@ def main():
                 'protein': 160,
                 'carbs': 180,
                 'fats': 60,
+                'fiber': 30,  # Recommended: 25-35g per day
                 'weight': 106.2,
                 'target_weight': 100.0  # Goal: <100 kg by end of year
             }
@@ -2612,6 +2615,7 @@ def main():
                 st.write(f"  - Eiwit: {current_nutrition['eiwit']:.0f}g")
                 st.write(f"  - Koolhydraten: {current_nutrition['koolhydraten']:.0f}g")
                 st.write(f"  - Vetten: {current_nutrition['vetten']:.0f}g")
+                st.write(f"  - Vezels: {current_nutrition.get('vezels', 0):.0f}g")
             
             with col_debug2:
                 st.markdown("**Verbruik:**")
@@ -2648,7 +2652,7 @@ def main():
         # SECTION 2: MACRO PROGRESS (Compact cards)
         st.markdown("### 📊 Macro's Vandaag")
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             cal_progress_pct = current_nutrition['calorien']/targets['calories']*100 if targets['calories'] > 0 else 0
@@ -2782,6 +2786,40 @@ def main():
                     <div style="height: 100%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); width: {fats_green:.1f}%; flex-shrink: 0;"></div>
                     {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {fats_red:.1f}%; flex-shrink: 0;"></div>' if fats_red > 0 else ''}
                     {f'<div style="height: 100%; background: #3a3a3a; width: {fats_gray:.1f}%; flex-shrink: 0;"></div>' if fats_gray > 0 else ''}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col5:
+            fiber_progress_pct = current_nutrition.get('vezels', 0)/targets.get('fiber', 30)*100 if targets.get('fiber', 30) > 0 else 0
+            is_over_fiber = fiber_progress_pct > 110
+            over_amount = current_nutrition.get('vezels', 0) - targets.get('fiber', 30) if fiber_progress_pct > 100 else 0
+            
+            if fiber_progress_pct <= 100:
+                fiber_green = fiber_progress_pct
+                fiber_red = 0
+                fiber_gray = 100 - fiber_progress_pct
+            else:
+                fiber_green = (100 / fiber_progress_pct) * 100
+                fiber_red = 100 - fiber_green
+                fiber_gray = 0
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); 
+                        padding: 12px; border-radius: 10px; border: 1px solid rgba(34, 197, 94, 0.3);
+                        text-align: center; height: 120px; box-sizing: border-box;">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🌾 Vezels</div>
+                <div style="font-size: 22px; font-weight: bold; color: #34d399; margin: 3px 0;">
+                    {current_nutrition.get('vezels', 0):.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets.get('fiber', 30)}</span>
+                </div>
+                <div style="font-size: 10px; margin-bottom: 5px;">
+                    <span style="font-weight: bold; color: {'#ef4444' if is_over_fiber else '#22c55e'};">{fiber_progress_pct:.0f}%</span>
+                    {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
+                </div>
+                <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
+                    <div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {fiber_green:.1f}%; flex-shrink: 0;"></div>
+                    {f'<div style="height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); width: {fiber_red:.1f}%; flex-shrink: 0;"></div>' if fiber_red > 0 else ''}
+                    {f'<div style="height: 100%; background: #3a3a3a; width: {fiber_gray:.1f}%; flex-shrink: 0;"></div>' if fiber_gray > 0 else ''}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -3167,7 +3205,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(220, 38, 38, 0.1)); 
                         border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                        text-align: center; min-height: 145px; box-sizing: border-box; 
+                        text-align: center; min-height: 160px; box-sizing: border-box; 
                         display: flex; flex-direction: column; justify-content: space-between; padding: 12px;">
                 <div>
                     <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🔥 Calorieën</div>
