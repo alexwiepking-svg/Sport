@@ -2373,6 +2373,120 @@ def main():
         st.markdown(hero_html, unsafe_allow_html=True)
         
         # ============================================
+        # 📅 WEEK OVERVIEW SECTION (Gamification!)
+        # ============================================
+        st.markdown("### 📅 Deze Week - Jouw Streak!")
+        
+        # Calculate last 7 days stats
+        week_data = []
+        for i in range(6, -1, -1):  # Last 7 days (6 days ago to today)
+            day = today - timedelta(days=i)
+            day_str = day.strftime('%d/%m/%Y')
+            day_str_dash = day.strftime('%d-%m-%Y')
+            
+            # Get nutrition for that day
+            day_nutrition = calculate_nutrition_totals(nutrition_df, day_str)
+            if sum(day_nutrition.values()) == 0:
+                day_nutrition = calculate_nutrition_totals(nutrition_df, day_str_dash)
+            
+            # Get activities and steps
+            day_burned, _ = calculate_total_calories_burned(activities_df, day_str)
+            day_stappen = 0
+            if not stappen_df.empty:
+                day_stappen_row = stappen_df[stappen_df['datum'].isin([day_str, day_str_dash])]
+                if not day_stappen_row.empty:
+                    day_stappen = day_stappen_row['stappen'].sum()
+            
+            # Calculate walking steps from sport (avoid double counting)
+            day_walking_steps = calculate_walking_steps_from_activities(activities_df, day_str)
+            day_casual_steps = max(0, day_stappen - day_walking_steps)
+            day_steps_cal = calculate_steps_calories(day_casual_steps, current_weight)
+            day_total_exp = bmr + day_steps_cal + day_burned
+            
+            day_net = day_nutrition['calorien'] - day_total_exp
+            
+            # Count workouts
+            day_workouts = 0
+            if not activities_df.empty:
+                day_workouts = len(activities_df[activities_df['datum'] == day_str])
+            
+            week_data.append({
+                'day': day.strftime('%a'),
+                'date': day.strftime('%d/%m'),
+                'net': day_net,
+                'is_deficit': day_net < 0,
+                'workouts': day_workouts,
+                'is_today': i == 0
+            })
+        
+        # Create visual week calendar
+        cols_week = st.columns(7)
+        for i, day_info in enumerate(week_data):
+            with cols_week[i]:
+                bg_color = "rgba(34, 197, 94, 0.2)" if day_info['is_deficit'] else "rgba(239, 68, 68, 0.2)"
+                border_color = "#22c55e" if day_info['is_deficit'] else "#ef4444"
+                
+                if day_info['is_today']:
+                    bg_color = "rgba(99, 102, 241, 0.3)"
+                    border_color = "#6366f1"
+                
+                workout_badge = f"<div style='margin-top: 5px; font-size: 11px;'>{'🏋️' * day_info['workouts']}</div>" if day_info['workouts'] > 0 else ""
+                
+                st.markdown(f"""
+                <div style="background: {bg_color}; padding: 10px; border-radius: 8px; 
+                            border: 2px solid {border_color}; text-align: center; height: 100px;">
+                    <div style="font-size: 11px; font-weight: bold; opacity: 0.8;">{day_info['day']}</div>
+                    <div style="font-size: 10px; opacity: 0.6; margin-bottom: 5px;">{day_info['date']}</div>
+                    <div style="font-size: 18px; font-weight: bold; color: {border_color};">
+                        {day_info['net']:+.0f}
+                    </div>
+                    <div style="font-size: 10px; opacity: 0.7;">kcal</div>
+                    {workout_badge}
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Week summary stats
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
+        
+        total_deficit = sum([d['net'] for d in week_data if d['is_deficit']])
+        deficit_days = sum([1 for d in week_data if d['is_deficit']])
+        total_workouts = sum([d['workouts'] for d in week_data])
+        avg_net = sum([d['net'] for d in week_data]) / 7
+        
+        with col_sum1:
+            st.metric(
+                label="📉 Totaal Deficit",
+                value=f"{total_deficit:.0f} kcal",
+                delta=f"{deficit_days} dagen deficit" if deficit_days > 0 else "Geen deficit"
+            )
+        
+        with col_sum2:
+            st.metric(
+                label="🏋️ Trainingen",
+                value=f"{total_workouts}",
+                delta="deze week"
+            )
+        
+        with col_sum3:
+            expected_weight_loss = abs(total_deficit) / 7700  # 7700 kcal = 1 kg vet
+            st.metric(
+                label="⚖️ Verwacht Verlies",
+                value=f"{expected_weight_loss:.2f} kg",
+                delta="bij deficit"
+            )
+        
+        with col_sum4:
+            st.metric(
+                label="📊 Gemiddeld/dag",
+                value=f"{avg_net:+.0f} kcal",
+                delta="✅" if avg_net < 0 else "⚠️"
+            )
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ============================================
         # 🔥 VANDAAG SECTION: TODAY'S STATUS
         # ============================================
         st.markdown("### 🔥 Vandaag")
@@ -2481,6 +2595,45 @@ def main():
                 </div>
             </div>
             """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ============================================
+        # 🔍 CALCULATION BREAKDOWN (Debug/Transparency)
+        # ============================================
+        with st.expander("🔍 Berekenings Breakdown (Controle)", expanded=False):
+            st.markdown("**📊 Calorie Berekeningen Vandaag:**")
+            
+            col_debug1, col_debug2 = st.columns(2)
+            
+            with col_debug1:
+                st.markdown("**Inname:**")
+                st.write(f"• Gegeten: **{current_nutrition['calorien']:.0f} kcal**")
+                st.write(f"  - Eiwit: {current_nutrition['eiwit']:.0f}g")
+                st.write(f"  - Koolhydraten: {current_nutrition['koolhydraten']:.0f}g")
+                st.write(f"  - Vetten: {current_nutrition['vetten']:.0f}g")
+            
+            with col_debug2:
+                st.markdown("**Verbruik:**")
+                st.write(f"• BMR (basis): **{bmr:.0f} kcal**")
+                st.write(f"• Stappen: {today_stappen:,.0f} totaal")
+                st.write(f"  - Sport steps: {walking_steps_from_sport:,.0f}")
+                st.write(f"  - Casual steps: {casual_steps:,.0f}")
+                st.write(f"  - Calories: **{steps_calories:.0f} kcal**")
+                st.write(f"• Sport: **{calories_burned:.0f} kcal**")
+                st.write(f"• **Totaal verbruik: {total_expenditure:.0f} kcal**")
+            
+            st.markdown("---")
+            st.markdown(f"**🎯 Netto: {current_nutrition['calorien']:.0f} - {total_expenditure:.0f} = {net_calories:+.0f} kcal**")
+            
+            # Formula explanation
+            st.info(f"""
+            📐 **Formules:**
+            - BMR: Mifflin-St Jeor (10×gewicht + 6.25×lengte - 5×leeftijd + 5)
+            - Steps: {casual_steps:,.0f} × 0.025 × ({current_weight:.1f} / 70) = {steps_calories:.0f} kcal
+            - Sport: MET × gewicht × uren (variërend per activiteit)
+            - Walking steps from sport: geschat op 1250 steps/km of 100 steps/min
+            """)
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -2912,118 +3065,6 @@ def main():
                 st.info("⏰ Nog geen maaltijden gelogd vandaag. Begin met invoeren!")
         else:
             st.info("📝 Geen voeding data beschikbaar.")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # SECTION 4: WEEK OVERVIEW
-        st.markdown("### 📅 Deze Week")
-        
-        # Calculate last 7 days stats
-        week_data = []
-        for i in range(6, -1, -1):  # Last 7 days (6 days ago to today)
-            day = today - timedelta(days=i)
-            day_str = day.strftime('%d/%m/%Y')
-            day_str_dash = day.strftime('%d-%m-%Y')
-            
-            # Get nutrition for that day
-            day_nutrition = calculate_nutrition_totals(nutrition_df, day_str)
-            if sum(day_nutrition.values()) == 0:
-                day_nutrition = calculate_nutrition_totals(nutrition_df, day_str_dash)
-            
-            # Get activities and steps
-            day_burned, _ = calculate_total_calories_burned(activities_df, day_str)
-            day_stappen = 0
-            if not stappen_df.empty:
-                day_stappen_row = stappen_df[stappen_df['datum'].isin([day_str, day_str_dash])]
-                if not day_stappen_row.empty:
-                    day_stappen = day_stappen_row['stappen'].sum()
-            
-            # Calculate walking steps from sport
-            day_walking_steps = calculate_walking_steps_from_activities(activities_df, day_str)
-            day_casual_steps = max(0, day_stappen - day_walking_steps)
-            day_steps_cal = calculate_steps_calories(day_casual_steps, current_weight)
-            day_total_exp = bmr + day_steps_cal + day_burned
-            
-            day_net = day_nutrition['calorien'] - day_total_exp
-            
-            # Count workouts
-            day_workouts = 0
-            if not activities_df.empty:
-                day_workouts = len(activities_df[activities_df['datum'] == day_str])
-            
-            week_data.append({
-                'day': day.strftime('%a'),
-                'date': day.strftime('%d/%m'),
-                'net': day_net,
-                'is_deficit': day_net < 0,
-                'workouts': day_workouts,
-                'is_today': i == 0
-            })
-        
-        # Create visual week calendar
-        cols_week = st.columns(7)
-        for i, day_info in enumerate(week_data):
-            with cols_week[i]:
-                bg_color = "rgba(34, 197, 94, 0.2)" if day_info['is_deficit'] else "rgba(239, 68, 68, 0.2)"
-                border_color = "#22c55e" if day_info['is_deficit'] else "#ef4444"
-                
-                if day_info['is_today']:
-                    bg_color = "rgba(99, 102, 241, 0.3)"
-                    border_color = "#6366f1"
-                
-                workout_badge = f"<div style='margin-top: 5px; font-size: 11px;'>{'🏋️' * day_info['workouts']}</div>" if day_info['workouts'] > 0 else ""
-                
-                st.markdown(f"""
-                <div style="background: {bg_color}; padding: 10px; border-radius: 8px; 
-                            border: 2px solid {border_color}; text-align: center; height: 100px;">
-                    <div style="font-size: 11px; font-weight: bold; opacity: 0.8;">{day_info['day']}</div>
-                    <div style="font-size: 10px; opacity: 0.6; margin-bottom: 5px;">{day_info['date']}</div>
-                    <div style="font-size: 18px; font-weight: bold; color: {border_color};">
-                        {day_info['net']:+.0f}
-                    </div>
-                    <div style="font-size: 10px; opacity: 0.7;">kcal</div>
-                    {workout_badge}
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Week summary stats
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
-        
-        total_deficit = sum([d['net'] for d in week_data if d['is_deficit']])
-        deficit_days = sum([1 for d in week_data if d['is_deficit']])
-        total_workouts = sum([d['workouts'] for d in week_data])
-        avg_net = sum([d['net'] for d in week_data]) / 7
-        
-        with col_sum1:
-            st.metric(
-                label="📉 Totaal Deficit",
-                value=f"{total_deficit:.0f} kcal",
-                delta=f"{deficit_days} dagen deficit" if deficit_days > 0 else "Geen deficit"
-            )
-        
-        with col_sum2:
-            st.metric(
-                label="🏋️ Trainingen",
-                value=f"{total_workouts}",
-                delta="deze week"
-            )
-        
-        with col_sum3:
-            expected_weight_loss = abs(total_deficit) / 7700  # 7700 kcal = 1 kg vet
-            st.metric(
-                label="⚖️ Verwacht Verlies",
-                value=f"{expected_weight_loss:.2f} kg",
-                delta="bij deficit"
-            )
-        
-        with col_sum4:
-            st.metric(
-                label="📊 Gemiddeld/dag",
-                value=f"{avg_net:+.0f} kcal",
-                delta="✅" if avg_net < 0 else "⚠️"
-            )
     
     # TAB 1: OVERZICHT (Analytics-only, geen dagelijkse input)
     with tab1:
