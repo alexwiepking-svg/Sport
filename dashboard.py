@@ -4373,9 +4373,20 @@ def main():
                     spier = metingen_df[metingen_df['categorie'] == 'Skeletspiermassa']
                     
                     if not vet_pct.empty:
-                        current_fat = float(vet_pct[latest_date].values[0])
+                        try:
+                            fat_value = float(vet_pct[latest_date].values[0])
+                            if not pd.isna(fat_value) and fat_value > 0:  # Check for NaN and reasonable values
+                                current_fat = fat_value
+                        except (ValueError, TypeError):
+                            pass
+                    
                     if not spier.empty:
-                        current_muscle = float(spier[latest_date].values[0])
+                        try:
+                            muscle_value = float(spier[latest_date].values[0])
+                            if not pd.isna(muscle_value) and muscle_value > 0:  # Check for NaN and reasonable values
+                                current_muscle = muscle_value
+                        except (ValueError, TypeError):
+                            pass
             
             # CARD 1: Current Weight (with week-over-week)
             with col1:
