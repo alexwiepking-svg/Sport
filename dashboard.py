@@ -1986,6 +1986,10 @@ def main():
             else:
                 end_date = start_date.replace(month=start_date.month + 1, day=1) - timedelta(days=1)
             
+            # If this is the current month, limit end_date to today
+            if start_date.year == today.year and start_date.month == today.month:
+                end_date = today
+            
             # Consistent date format with Dutch month names
             months = {
                 1: 'januari', 2: 'februari', 3: 'maart', 4: 'april',
