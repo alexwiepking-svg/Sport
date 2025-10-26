@@ -132,14 +132,24 @@ st.markdown("""
             display: none !important;
         }
         
-        /* Compact plotly graphs */
+        /* Compact plotly graphs - larger for readability */
         .js-plotly-plot {
-            height: 250px !important;
+            height: 350px !important;
             max-width: 100vw !important;
         }
         
         .js-plotly-plot .plotly {
             width: 100% !important;
+        }
+        
+        /* Larger text in graphs for mobile */
+        .js-plotly-plot text {
+            font-size: 13px !important;
+        }
+        
+        .js-plotly-plot .xtick text,
+        .js-plotly-plot .ytick text {
+            font-size: 12px !important;
         }
         
         /* Hide horizontal scrollbars on graphs */
@@ -917,23 +927,52 @@ def get_kracht_data():
         return data['egym']
     return pd.DataFrame()
 
+def get_plotly_config():
+    """
+    Get mobile-optimized Plotly config for all charts.
+    Disables unnecessary controls and enables responsive mode.
+    """
+    return {
+        'displayModeBar': False,
+        'responsive': True,
+        'displaylogo': False
+    }
+
 def get_chart_layout_defaults():
     """
     Get default layout settings for all charts with consistent styling and readable tooltips.
-    Consolidated from previous separate functions for better maintainability.
+    Optimized for mobile devices with responsive font sizes and better spacing.
     """
     return {
         'template': 'custom_dark',
         'paper_bgcolor': 'rgba(0,0,0,0)',
         'plot_bgcolor': 'rgba(0,0,0,0)',
-        'font': dict(color='white'),
-        'xaxis': dict(gridcolor='rgba(255,255,255,0.1)'),
-        'yaxis': dict(gridcolor='rgba(255,255,255,0.1)'),
+        'font': dict(color='white', size=13),  # Increased base font size
+        'title': dict(font=dict(size=16)),  # Larger titles
+        'xaxis': dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            tickfont=dict(size=12),  # Larger tick labels
+            automargin=True  # Auto-adjust margins for labels
+        ),
+        'yaxis': dict(
+            gridcolor='rgba(255,255,255,0.1)',
+            tickfont=dict(size=12),  # Larger tick labels
+            automargin=True  # Auto-adjust margins for labels
+        ),
         'hoverlabel': dict(
             bgcolor='rgba(0, 0, 0, 0.95)',
-            font=dict(color='white', size=14, family='Arial'),
+            font=dict(color='white', size=13, family='Arial'),  # Slightly smaller hover text
             bordercolor='rgba(139, 92, 246, 1)',
             align='left'
+        ),
+        'margin': dict(l=10, r=10, t=40, b=10),  # Tighter margins for mobile
+        'legend': dict(
+            font=dict(size=12),  # Readable legend text
+            orientation='h',  # Horizontal legend takes less vertical space
+            yanchor='bottom',
+            y=1.02,
+            xanchor='right',
+            x=1
         )
     }
 
@@ -4467,6 +4506,13 @@ def main():
                             y=1.02,
                             xanchor="right",
                             x=1
+                        ),
+                        'xaxis': dict(
+                            gridcolor='rgba(255,255,255,0.1)',
+                            tickfont=dict(size=11),
+                            tickangle=-45,  # Rotate labels for better fit
+                            automargin=True,
+                            nticks=10  # Limit number of ticks on x-axis
                         )
                     })
                     fig.update_layout(**layout)
@@ -5170,7 +5216,14 @@ def main():
                         xanchor="right",
                         x=1
                     ),
-                    'height': 450
+                    'height': 450,
+                    'xaxis': dict(
+                        gridcolor='rgba(255,255,255,0.1)',
+                        tickfont=dict(size=11),
+                        tickangle=-45,
+                        automargin=True,
+                        nticks=8  # Limit ticks for readability
+                    )
                 })
                 fig_gewicht.update_layout(**layout)
                 
