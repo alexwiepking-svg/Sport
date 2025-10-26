@@ -1054,13 +1054,19 @@ def analyze_measurements(metingen_df):
     
     return trends
 
-def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=None, gewicht_df=None):
+def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=None, gewicht_df=None, nutrition_df=None, activities_df=None, stappen_df=None):
     """
-    Calculate body composition projections using linear regression
+    Calculate body composition projections using:
+    1. Linear regression on historical weight data (baseline trend)
+    2. Behavior-based projection using current deficit/surplus (more accurate)
+    
     Returns projections for weight, fat%, and muscle mass
     
     Args:
         gewicht_df: Daily weight tracking data for more accurate weight projections
+        nutrition_df: Nutrition data to calculate average deficit
+        activities_df: Activity data for calorie burn
+        stappen_df: Steps data for activity tracking
     """
     if metingen_df.empty:
         return None
@@ -1224,6 +1230,73 @@ def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=
         projected_vet_change = vet_projected[-1] - current_vet
         projected_spier_change = spier_projected[-1] - current_spier
         
+        # ============================================
+        # BEHAVIOR-BASED PROJECTION (More Accurate!)
+        # ============================================
+        behavior_projection = None
+        if nutrition_df is not None and activities_df is not None and not nutrition_df.empty:
+            try:
+                # Calculate average daily deficit over last 14 days
+                today = datetime.now()
+                lookback_days = 14
+                
+                daily_deficits = []
+                for i in range(lookback_days):
+                    check_date = today - timedelta(days=i)
+                    date_str = check_date.strftime('%d/%m/%Y')
+                    
+                    # Get nutrition
+                    day_nutrition = calculate_nutrition_totals(nutrition_df, date_str)
+                    if sum(day_nutrition.values()) == 0:
+                        continue
+                    
+                    # Get activities
+                    day_burned, _ = calculate_total_calories_burned(activities_df, date_str)
+                    
+                    # Get steps
+                    day_stappen = 0
+                    if stappen_df is not None and not stappen_df.empty:
+                        day_stappen_row = stappen_df[stappen_df['datum'] == date_str]
+                        if not day_stappen_row.empty:
+                            day_stappen = day_stappen_row['stappen'].sum()
+                    
+                    # Calculate walking steps from activities to avoid double counting
+                    day_walking_steps = calculate_walking_steps_from_activities(activities_df, date_str)
+                    day_casual_steps = max(0, day_stappen - day_walking_steps)
+                    
+                    # Calculate deficit
+                    bmr = calculate_bmr(current_gewicht, 180, 37, 'male')  # Using defaults
+                    day_steps_cal = calculate_steps_calories(day_casual_steps, current_gewicht)
+                    day_total_exp = bmr + day_steps_cal + day_burned
+                    day_net = day_nutrition['calorien'] - day_total_exp
+                    
+                    daily_deficits.append(day_net)
+                
+                if len(daily_deficits) >= 7:  # Need at least a week of data
+                    avg_daily_deficit = np.mean(daily_deficits)
+                    
+                    # Convert deficit to weekly weight change
+                    # 7700 kcal deficit = 1 kg fat loss
+                    weekly_weight_change = (avg_daily_deficit * 7) / 7700
+                    
+                    # Project weight based on current behavior
+                    behavior_projected_weights = []
+                    for week in range(1, weeks_ahead + 1):
+                        projected_weight = current_gewicht + (weekly_weight_change * week)
+                        behavior_projected_weights.append(projected_weight)
+                    
+                    behavior_projection = {
+                        'gewicht': np.array(behavior_projected_weights),
+                        'avg_daily_deficit': avg_daily_deficit,
+                        'weekly_change': weekly_weight_change,
+                        'data_points': len(daily_deficits),
+                        'confidence': min(1.0, len(daily_deficits) / 14)  # Confidence based on data availability
+                    }
+                    
+                    print(f"DEBUG: Behavior projection - Avg deficit: {avg_daily_deficit:.0f} kcal/day, Weekly change: {weekly_weight_change:.3f} kg/week")
+            except Exception as e:
+                print(f"DEBUG: Could not calculate behavior projection: {e}")
+        
         return {
             'historical': {
                 'dates': dates,
@@ -1239,6 +1312,7 @@ def calculate_body_projections(metingen_df, weeks_ahead=4, current_daily_weight=
                 'vet_pct': vet_projected,
                 'spier': spier_projected
             },
+            'behavior_projection': behavior_projection,  # NEW!
             'regression': {
                 'gewicht': {'slope': gewicht_reg.slope, 'r_squared': gewicht_confidence},
                 'vet_pct': {'slope': vet_reg.slope, 'r_squared': vet_confidence},
@@ -5070,15 +5144,49 @@ def main():
         # COMBINED TIMELINE: "Waar GA ik heen?"
         st.markdown("### 🎯 Waar ga ik heen?")
         st.markdown("<p style='font-size: 13px; opacity: 0.7; margin-top: -10px;'>Combinatie van dagelijkse wegingen, officiële metingen en 4-weken projectie</p>", unsafe_allow_html=True)
+        
+        # Info box about projection methods
+        with st.expander("ℹ️ Hoe werken de projecties?", expanded=False):
+            st.markdown("""
+            <div style='font-size: 13px;'>
+                <p><strong>📊 Trend Projectie</strong> (grijze stippellijn)</p>
+                <ul style='margin-top: 5px;'>
+                    <li>Kijkt naar je <em>historische</em> patroon over meerdere maanden</li>
+                    <li>Gebruikt lineaire regressie om langetermijn trend te berekenen</li>
+                    <li>Goed voor algemene richting, maar reageert traag op gedragsveranderingen</li>
+                    <li>Betrouwbaarheid wordt getoond als R² percentage (hoe goed de trend past)</li>
+                </ul>
+                
+                <p style='margin-top: 15px;'><strong>⭐ Gedrag Projectie</strong> (groene lijn met sterren)</p>
+                <ul style='margin-top: 5px;'>
+                    <li>Kijkt naar je <em>huidige</em> gedrag van de afgelopen 14 dagen</li>
+                    <li>Berekent dagelijks calorie-overschot/tekort uit: BMR + stappen + activiteiten - voeding</li>
+                    <li>7700 kcal tekort = 1 kg gewichtsverlies → omgerekend naar kg/week</li>
+                    <li>Projecteert: "Als je dit gedrag volhoudt, verlies/pak je X kg aan"</li>
+                    <li><strong>Meer accuraat voor korte termijn (4 weken)</strong> dan de trend!</li>
+                </ul>
+                
+                <p style='margin-top: 15px; padding: 10px; background-color: rgba(34, 197, 94, 0.1); border-radius: 5px;'>
+                    💡 <strong>Tip:</strong> Als de lijnen ver uit elkaar liggen, betekent dit dat je recent gedrag 
+                    anders is dan je historische patroon. De gedrag projectie (⭐) geeft dan een betrouwbaarder 
+                    beeld van wat je de komende weken kunt verwachten!
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
         
         if not metingen_df.empty:
             # Pass current daily weight and daily weight data for accurate projection calculations
+            # Also pass nutrition, activities, and steps for behavior-based projection
             projections = calculate_body_projections(
                 metingen_df, 
                 weeks_ahead=4, 
                 current_daily_weight=current_weight,
-                gewicht_df=data.get('gewicht', pd.DataFrame())
+                gewicht_df=data.get('gewicht', pd.DataFrame()),
+                nutrition_df=nutrition_df,
+                activities_df=activities_df,
+                stappen_df=stappen_df
             )
             
             if projections and 'error' not in projections:
@@ -5087,28 +5195,41 @@ def main():
                 proj = projections['projections']
                 summary = projections['summary']
                 regression = projections['regression']
+                behavior_proj = projections.get('behavior_projection')
                 
                 # Three columns for insight cards
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    gewicht_icon = "📉" if summary['gewicht_change'] < 0 else "📈"
-                    gewicht_color = "#22c55e" if summary['gewicht_change'] < 0 else "#ef4444"
+                    # Use behavior projection if available (more accurate!)
+                    if behavior_proj:
+                        projected_weight = behavior_proj['gewicht'][-1]
+                        weight_change = projected_weight - summary['current_gewicht']
+                        confidence_text = f"Gebaseerd op {behavior_proj['data_points']} dagen gedrag"
+                        projection_type = "gedrag"
+                    else:
+                        projected_weight = summary['projected_gewicht']
+                        weight_change = summary['gewicht_change']
+                        confidence_text = f"Trend: {regression['gewicht']['r_squared']:.1%}"
+                        projection_type = "trend"
+                    
+                    gewicht_icon = "📉" if weight_change < 0 else "📈"
+                    gewicht_color = "#22c55e" if weight_change < 0 else "#ef4444"
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.2)); 
                                 padding: 18px; border-radius: 10px; border-left: 4px solid #6366f1;">
                         <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">{gewicht_icon} Gewicht Projectie</div>
                         <div style="font-size: 28px; font-weight: bold; margin-bottom: 10px;">
-                            {summary['projected_gewicht']:.1f} kg
+                            {projected_weight:.1f} kg
                         </div>
                         <div style="font-size: 16px; color: {gewicht_color}; font-weight: bold;">
-                            {summary['gewicht_change']:+.1f} kg
+                            {weight_change:+.1f} kg
                         </div>
                         <div style="font-size: 12px; opacity: 0.7; margin-top: 5px;">
                             over {summary['weeks_ahead']} weken
                         </div>
                         <div style="font-size: 11px; opacity: 0.6; margin-top: 8px;">
-                            Betrouwbaarheid: {regression['gewicht']['r_squared']:.1%}
+                            {'⭐ ' if projection_type == 'gedrag' else ''}{confidence_text}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -5228,18 +5349,34 @@ def main():
                             hovertemplate='<b>%{customdata}</b><br>Officieel: %{y:.1f} kg<extra></extra>'
                         ))
                 
-                # Projection
+                # Projection (Linear Regression - Historical Trend)
                 proj_labels = [format_date_nl(d) for d in proj['dates']]
                 fig_gewicht.add_trace(go.Scatter(
                     x=[all_dates[-1]] + list(proj['dates']) if all_dates else list(proj['dates']),
                     y=[all_weights[-1]] + list(proj['gewicht']) if all_weights else list(proj['gewicht']),
                     mode='lines+markers',
-                    name='Projectie (4 weken)',
-                    line=dict(color='rgba(34, 197, 94, 0.7)', width=2.5, dash='dash'),
-                    marker=dict(size=7, color='rgba(34, 197, 94, 0.9)', symbol='diamond'),
+                    name='Trend projectie',
+                    line=dict(color='rgba(156, 163, 175, 0.6)', width=2, dash='dot'),
+                    marker=dict(size=6, color='rgba(156, 163, 175, 0.8)', symbol='diamond'),
                     customdata=[date_labels[-1]] + proj_labels if all_dates else proj_labels,
-                    hovertemplate='<b>%{customdata}</b><br>Projectie: %{y:.1f} kg<extra></extra>'
+                    hovertemplate='<b>%{customdata}</b><br>Trend: %{y:.1f} kg<extra></extra>'
                 ))
+                
+                # Behavior-based Projection (More accurate!)
+                if projections.get('behavior_projection'):
+                    behavior_proj = projections['behavior_projection']
+                    behavior_weights = [all_weights[-1]] + list(behavior_proj['gewicht']) if all_weights else list(behavior_proj['gewicht'])
+                    
+                    fig_gewicht.add_trace(go.Scatter(
+                        x=[all_dates[-1]] + list(proj['dates']) if all_dates else list(proj['dates']),
+                        y=behavior_weights,
+                        mode='lines+markers',
+                        name='Gedrag projectie ⭐',
+                        line=dict(color='rgba(34, 197, 94, 0.9)', width=3, dash='dash'),
+                        marker=dict(size=8, color='rgba(34, 197, 94, 1)', symbol='star'),
+                        customdata=[date_labels[-1]] + proj_labels if all_dates else proj_labels,
+                        hovertemplate='<b>%{customdata}</b><br>Op basis van gedrag: %{y:.1f} kg<extra></extra>'
+                    ))
                 
                 # Target weight line (if set)
                 if 'weight' in st.session_state.targets:
