@@ -5147,32 +5147,24 @@ def main():
         
         # Info box about projection methods
         with st.expander("ℹ️ Hoe werken de projecties?", expanded=False):
+            st.markdown("**📊 Trend Projectie** (grijze stippellijn)")
             st.markdown("""
-            <div style="font-size: 13px;">
-                <p><strong>📊 Trend Projectie</strong> (grijze stippellijn)</p>
-                <ul style="margin-top: 5px;">
-                    <li>Kijkt naar je <em>historische</em> patroon over meerdere maanden</li>
-                    <li>Gebruikt lineaire regressie om langetermijn trend te berekenen</li>
-                    <li>Goed voor algemene richting, maar reageert traag op gedragsveranderingen</li>
-                    <li>Betrouwbaarheid wordt getoond als R² percentage (hoe goed de trend past)</li>
-                </ul>
-                
-                <p style="margin-top: 15px;"><strong>⭐ Gedrag Projectie</strong> (groene lijn met sterren)</p>
-                <ul style="margin-top: 5px;">
-                    <li>Kijkt naar je <em>huidige</em> gedrag van de afgelopen 14 dagen</li>
-                    <li>Berekent dagelijks calorie-overschot/tekort uit: BMR + stappen + activiteiten - voeding</li>
-                    <li>7700 kcal tekort = 1 kg gewichtsverlies → omgerekend naar kg/week</li>
-                    <li>Projecteert: "Als je dit gedrag volhoudt, verlies/pak je X kg aan"</li>
-                    <li><strong>Meer accuraat voor korte termijn (4 weken)</strong> dan de trend!</li>
-                </ul>
-                
-                <p style="margin-top: 15px; padding: 10px; background-color: rgba(34, 197, 94, 0.1); border-radius: 5px;">
-                    💡 <strong>Tip:</strong> Als de lijnen ver uit elkaar liggen, betekent dit dat je recent gedrag 
-                    anders is dan je historische patroon. De gedrag projectie (⭐) geeft dan een betrouwbaarder 
-                    beeld van wat je de komende weken kunt verwachten!
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+- Kijkt naar je *historische* patroon over meerdere maanden
+- Gebruikt lineaire regressie om langetermijn trend te berekenen
+- Goed voor algemene richting, maar reageert traag op gedragsveranderingen
+- Betrouwbaarheid wordt getoond als R² percentage (hoe goed de trend past)
+            """)
+            
+            st.markdown("**⭐ Gedrag Projectie** (groene lijn met sterren)")
+            st.markdown("""
+- Kijkt naar je *huidige* gedrag van de afgelopen 14 dagen
+- Berekent dagelijks calorie-overschot/tekort uit: BMR + stappen + activiteiten - voeding
+- 7700 kcal tekort = 1 kg gewichtsverlies → omgerekend naar kg/week
+- Projecteert: "Als je dit gedrag volhoudt, verlies/pak je X kg aan"
+- **Meer accuraat voor korte termijn (4 weken)** dan de trend!
+            """)
+            
+            st.info("💡 **Tip:** Als de lijnen ver uit elkaar liggen, betekent dit dat je recent gedrag anders is dan je historische patroon. De gedrag projectie (⭐) geeft dan een betrouwbaarder beeld van wat je de komende weken kunt verwachten!")
         
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
         
