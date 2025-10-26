@@ -2447,10 +2447,14 @@ def main():
             
             day_net = day_nutrition['calorien'] - day_total_exp
             
-            # Count workouts
+            # Count workouts (unique sessions per day, not individual exercises)
             day_workouts = 0
             if not activities_df.empty:
-                day_workouts = len(activities_df[activities_df['datum'] == day_str])
+                day_activities = activities_df[activities_df['datum'] == day_str]
+                if not day_activities.empty:
+                    # Count unique session types per day (cardio and/or strength)
+                    unique_types = day_activities['type'].str.lower().unique()
+                    day_workouts = len(unique_types)
             
             week_data.append({
                 'day': day.strftime('%a'),
@@ -2542,6 +2546,8 @@ def main():
             status_color = "#22c55e" if is_deficit else "#ef4444"
             status_icon = "✅" if is_deficit else "⚠️"
             
+            # Use avg_net from week_data calculation above for 7-day average
+            
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.1)); 
                         padding: 18px; border-radius: 12px; border-left: 4px solid #f97316; 
@@ -2556,18 +2562,28 @@ def main():
                 </div>
                 <div>
                     <div style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
-                        Doel: {target_deficit:+.0f} kcal/dag
+                        Ø {avg_net:+.0f} kcal/dag (7d)
                     </div>
                     <div style="font-size: 10px; color: {status_color}; font-weight: 600;">
-                        {status_icon} {abs(deficit_vs_target):.0f} kcal {'onder' if deficit_vs_target < 0 else 'boven'}
+                        {status_icon} Doel: {target_deficit:+.0f} kcal/dag
                     </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
-            # Activity status
-            workout_today = len(activities_df[activities_df['datum'] == today_str]) if not activities_df.empty else 0
+            # Activity status - count unique sessions, not exercises
+            workout_today = 0
+            if not activities_df.empty:
+                today_activities = activities_df[activities_df['datum'] == today_str]
+                if not today_activities.empty:
+                    # Count unique session types (cardio and/or strength)
+                    unique_types = today_activities['type'].str.lower().unique()
+                    workout_today = len(unique_types)
+            
+            # Calculate average workouts per day (last 7 days)
+            avg_workouts_per_day = total_workouts / 7
+            
             workout_color = "#22c55e" if workout_today > 0 else "#94a3b8"
             
             st.markdown(f"""
@@ -2584,10 +2600,10 @@ def main():
                 </div>
                 <div>
                     <div style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
-                        {calories_burned:.0f} kcal verbrand
+                        Ø {avg_workouts_per_day:.1f} sessies/dag (7d)
                     </div>
                     <div style="font-size: 10px; opacity: 0.7;">
-                        🚶 {today_stappen:,.0f} stappen ({steps_calories:.0f} kcal)
+                        {calories_burned:.0f} kcal sport + {steps_calories:.0f} stappen
                     </div>
                 </div>
             </div>
@@ -2691,6 +2707,28 @@ def main():
         # SECTION 2: MACRO PROGRESS (Compact cards)
         st.markdown("### 📊 Macro's Vandaag")
         
+        # Calculate 7-day averages for all macros
+        week_macros = {'calorien': [], 'eiwit': [], 'koolhydraten': [], 'vetten': [], 'vezels': []}
+        for i in range(7):
+            day = today - timedelta(days=i)
+            day_str = day.strftime('%d/%m/%Y')
+            day_nutrition = calculate_nutrition_totals(nutrition_df, day_str)
+            if sum(day_nutrition.values()) == 0:
+                day_str_dash = day.strftime('%d-%m-%Y')
+                day_nutrition = calculate_nutrition_totals(nutrition_df, day_str_dash)
+            
+            week_macros['calorien'].append(day_nutrition.get('calorien', 0))
+            week_macros['eiwit'].append(day_nutrition.get('eiwit', 0))
+            week_macros['koolhydraten'].append(day_nutrition.get('koolhydraten', 0))
+            week_macros['vetten'].append(day_nutrition.get('vetten', 0))
+            week_macros['vezels'].append(day_nutrition.get('vezels', 0))
+        
+        avg_calorien = sum(week_macros['calorien']) / 7
+        avg_eiwit = sum(week_macros['eiwit']) / 7
+        avg_koolhydraten = sum(week_macros['koolhydraten']) / 7
+        avg_vetten = sum(week_macros['vetten']) / 7
+        avg_vezels = sum(week_macros['vezels']) / 7
+        
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
@@ -2710,7 +2748,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(220, 38, 38, 0.1)); 
                         padding: 12px; border-radius: 10px; border: 1px solid rgba(249, 115, 22, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🔥 Calorieën</div>
                 <div style="font-size: 22px; font-weight: bold; color: #fb923c; margin: 3px 0;">
                     {current_nutrition['calorien']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['calories']}</span>
@@ -2718,6 +2756,9 @@ def main():
                 <div style="font-size: 10px; margin-bottom: 5px;">
                     <span style="font-weight: bold; color: {'#ef4444' if is_over_cal else '#22c55e'};">{cal_progress_pct:.0f}%</span>
                     {f' ({over_amount:.0f} over)' if over_amount > 0 else ' ✓'}
+                </div>
+                <div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">
+                    Ø {avg_calorien:.0f} kcal/dag (7d)
                 </div>
                 <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); width: {cal_green:.1f}%; flex-shrink: 0;"></div>
@@ -2744,7 +2785,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.1)); 
                         padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">💪 Eiwit</div>
                 <div style="font-size: 22px; font-weight: bold; color: #60a5fa; margin: 3px 0;">
                     {current_nutrition['eiwit']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['protein']}</span>
@@ -2752,6 +2793,9 @@ def main():
                 <div style="font-size: 10px; margin-bottom: 5px;">
                     <span style="font-weight: bold; color: {'#ef4444' if is_over_prot else '#22c55e'};">{prot_progress_pct:.0f}%</span>
                     {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
+                </div>
+                <div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">
+                    Ø {avg_eiwit:.0f}g/dag (7d)
                 </div>
                 <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #60a5fa, #3b82f6); width: {prot_green:.1f}%; flex-shrink: 0;"></div>
@@ -2778,7 +2822,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1)); 
                         padding: 12px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🌾 Koolhydraten</div>
                 <div style="font-size: 22px; font-weight: bold; color: #34d399; margin: 3px 0;">
                     {current_nutrition['koolhydraten']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['carbs']}</span>
@@ -2786,6 +2830,9 @@ def main():
                 <div style="font-size: 10px; margin-bottom: 5px;">
                     <span style="font-weight: bold; color: {'#ef4444' if is_over_carbs else '#22c55e'};">{carbs_progress_pct:.0f}%</span>
                     {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
+                </div>
+                <div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">
+                    Ø {avg_koolhydraten:.0f}g/dag (7d)
                 </div>
                 <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {carbs_green:.1f}%; flex-shrink: 0;"></div>
@@ -2812,7 +2859,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.1)); 
                         padding: 12px; border-radius: 10px; border: 1px solid rgba(139, 92, 246, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🥑 Vetten</div>
                 <div style="font-size: 22px; font-weight: bold; color: #a78bfa; margin: 3px 0;">
                     {current_nutrition['vetten']:.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets['fats']}</span>
@@ -2820,6 +2867,9 @@ def main():
                 <div style="font-size: 10px; margin-bottom: 5px;">
                     <span style="font-weight: bold; color: {'#ef4444' if is_over_fats else '#22c55e'};">{fats_progress_pct:.0f}%</span>
                     {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
+                </div>
+                <div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">
+                    Ø {avg_vetten:.0f}g/dag (7d)
                 </div>
                 <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); width: {fats_green:.1f}%; flex-shrink: 0;"></div>
@@ -2846,7 +2896,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); 
                         padding: 12px; border-radius: 10px; border: 1px solid rgba(34, 197, 94, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 3px;">🌾 Vezels</div>
                 <div style="font-size: 22px; font-weight: bold; color: #34d399; margin: 3px 0;">
                     {current_nutrition.get('vezels', 0):.0f}<span style="font-size: 12px; opacity: 0.7;">/{targets.get('fiber', 30)}</span>
@@ -2854,6 +2904,9 @@ def main():
                 <div style="font-size: 10px; margin-bottom: 5px;">
                     <span style="font-weight: bold; color: {'#ef4444' if is_over_fiber else '#22c55e'};">{fiber_progress_pct:.0f}%</span>
                     {f' ({over_amount:.0f}g over)' if over_amount > 0 else ' ✓'}
+                </div>
+                <div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">
+                    Ø {avg_vezels:.0f}g/dag (7d)
                 </div>
                 <div style="height: 5px; background: #2a2a2a; border-radius: 3px; overflow: hidden; width: 100%; display: flex;">
                     <div style="height: 100%; background: linear-gradient(90deg, #34d399, #10b981); width: {fiber_green:.1f}%; flex-shrink: 0;"></div>
@@ -3937,7 +3990,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🔥 Calorieën</div>
                 <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #fb923c; margin: 12px 0;">{totals['calorien']:.0f}<span style="font-size: 16px; opacity: 0.7;"> kcal</span></div>
             </div>
@@ -3946,7 +3999,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">💪 Eiwit</div>
                 <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #60a5fa; margin: 12px 0;">{totals['eiwit']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
             </div>
@@ -3955,7 +4008,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(74, 222, 128, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🌾 Koolhydraten</div>
                 <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #34d399; margin: 12px 0;">{totals['koolhydraten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
             </div>
@@ -3964,7 +4017,7 @@ def main():
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(250, 204, 21, 0.1)); 
                         padding: 18px; border-radius: 12px; border: 1px solid rgba(234, 179, 8, 0.3);
-                        text-align: center; height: 120px; box-sizing: border-box;">
+                        text-align: center; min-height: 160px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">🥑 Vetten</div>
                 <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #facc15; margin: 12px 0;">{totals['vetten']:.0f}<span style="font-size: 16px; opacity: 0.7;"> g</span></div>
             </div>
