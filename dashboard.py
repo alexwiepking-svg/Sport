@@ -4006,11 +4006,13 @@ def main():
             # Case-insensitive filtering for cardio
             cardio = period_activities[period_activities['type'].str.lower() == 'cardio']
             
-            # Calculate week-over-week comparison for cardio
-            prev_week_start = start_date - timedelta(days=7)
-            prev_week_end = end_date - timedelta(days=7)
-            prev_week_activities = filter_by_date_range(activities_df, prev_week_start, prev_week_end)
-            prev_week_cardio = prev_week_activities[prev_week_activities['type'].str.lower() == 'cardio']
+            # Calculate comparison based on selected period type
+            # Calculate period length to determine comparison window
+            period_days = (end_date - start_date).days + 1
+            prev_period_start = start_date - timedelta(days=period_days)
+            prev_period_end = end_date - timedelta(days=period_days)
+            prev_period_activities = filter_by_date_range(activities_df, prev_period_start, prev_period_end)
+            prev_week_cardio = prev_period_activities[prev_period_activities['type'].str.lower() == 'cardio']
             
             if not cardio.empty:
                 # Calculate calories for cardio activities
@@ -4069,6 +4071,15 @@ def main():
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
+                    # Determine comparison label based on period length
+                    period_days = (end_date - start_date).days + 1
+                    if period_days <= 7:
+                        comparison_label = "vs vorige week"
+                    elif period_days <= 31:
+                        comparison_label = "vs vorige maand"
+                    else:
+                        comparison_label = "vs vorige periode"
+                    
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(251, 113, 133, 0.1)); 
                                 padding: 18px; border-radius: 12px; border: 1px solid rgba(236, 72, 153, 0.3);
@@ -4077,7 +4088,7 @@ def main():
                         <div style="font-size: 26px; font-weight: bold; line-height: 1.2; color: #f472b6; margin: 12px 0;">{len(cardio)}</div>
                         <div style="display: inline-block; background: {sessions_badge_bg}; border: 1px solid {sessions_badge_border}; 
                                     padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: {sessions_color}; margin-top: 8px;">
-                            {sessions_arrow} {sessions_change:+d} vs vorige week
+                            {sessions_arrow} {sessions_change:+d} {comparison_label}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -4085,7 +4096,7 @@ def main():
                 with col2:
                     comparison_badge = f"""<div style="display: inline-block; background: {distance_badge_bg}; border: 1px solid {distance_badge_border}; 
                                                     padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: {distance_color};">
-                                                {distance_arrow} {distance_change_pct:+.0f}% vs vorige week
+                                                {distance_arrow} {distance_change_pct:+.0f}% {comparison_label}
                                             </div>""" if prev_week_distance > 0 else '<div style="min-height: 28px;"></div>'
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.1)); 
@@ -4369,17 +4380,27 @@ def main():
                 with col_left:
                     st.markdown("#### 📈 Stappen Trend")
                     
-                    # Create daily breakdown with cardio indication
+                    # Create daily breakdown for ALL days in the selected period
                     daily_breakdown = []
-                    for _, row in period_stappen.iterrows():
-                        datum = row['datum']
-                        stappen = row['stappen'] if 'stappen' in row and pd.notna(row['stappen']) else 0
-                        is_cardio = row.get('cardio_normalized', 'nee') in ['ja', 'yes', 'j']
+                    
+                    # Generate all dates in the period
+                    current_date = start_date
+                    while current_date <= end_date:
+                        datum_str = current_date.strftime('%d/%m/%Y')
+                        
+                        # Find matching step data for this date
+                        matching_steps = period_stappen[period_stappen['datum'] == datum_str]
+                        if not matching_steps.empty:
+                            stappen = matching_steps.iloc[0]['stappen'] if 'stappen' in matching_steps.columns and pd.notna(matching_steps.iloc[0]['stappen']) else 0
+                            is_cardio = matching_steps.iloc[0].get('cardio_normalized', 'nee') in ['ja', 'yes', 'j']
+                        else:
+                            stappen = 0
+                            is_cardio = False
                         
                         # Find matching cardio distance for this date
                         cardio_dist = 0
                         if is_cardio and not cardio.empty:
-                            matching_cardio = cardio[cardio['datum'] == datum]
+                            matching_cardio = cardio[cardio['datum'] == datum_str]
                             if not matching_cardio.empty and 'afstand' in matching_cardio.columns:
                                 for _, c_row in matching_cardio.iterrows():
                                     try:
@@ -4393,11 +4414,13 @@ def main():
                         background_steps = max(0, stappen - cardio_steps_est)
                         
                         daily_breakdown.append({
-                            'datum': datum,
+                            'datum': datum_str,
                             'Achtergrond': background_steps,
                             'Cardio Training': cardio_steps_est,
                             'Totaal': stappen
                         })
+                        
+                        current_date += timedelta(days=1)
                     
                     breakdown_df = pd.DataFrame(daily_breakdown)
                     
