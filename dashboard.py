@@ -5148,17 +5148,17 @@ def main():
         # Info box about projection methods
         with st.expander("ℹ️ Hoe werken de projecties?", expanded=False):
             st.markdown("""
-            <div style='font-size: 13px;'>
+            <div style="font-size: 13px;">
                 <p><strong>📊 Trend Projectie</strong> (grijze stippellijn)</p>
-                <ul style='margin-top: 5px;'>
+                <ul style="margin-top: 5px;">
                     <li>Kijkt naar je <em>historische</em> patroon over meerdere maanden</li>
                     <li>Gebruikt lineaire regressie om langetermijn trend te berekenen</li>
                     <li>Goed voor algemene richting, maar reageert traag op gedragsveranderingen</li>
                     <li>Betrouwbaarheid wordt getoond als R² percentage (hoe goed de trend past)</li>
                 </ul>
                 
-                <p style='margin-top: 15px;'><strong>⭐ Gedrag Projectie</strong> (groene lijn met sterren)</p>
-                <ul style='margin-top: 5px;'>
+                <p style="margin-top: 15px;"><strong>⭐ Gedrag Projectie</strong> (groene lijn met sterren)</p>
+                <ul style="margin-top: 5px;">
                     <li>Kijkt naar je <em>huidige</em> gedrag van de afgelopen 14 dagen</li>
                     <li>Berekent dagelijks calorie-overschot/tekort uit: BMR + stappen + activiteiten - voeding</li>
                     <li>7700 kcal tekort = 1 kg gewichtsverlies → omgerekend naar kg/week</li>
@@ -5166,7 +5166,7 @@ def main():
                     <li><strong>Meer accuraat voor korte termijn (4 weken)</strong> dan de trend!</li>
                 </ul>
                 
-                <p style='margin-top: 15px; padding: 10px; background-color: rgba(34, 197, 94, 0.1); border-radius: 5px;'>
+                <p style="margin-top: 15px; padding: 10px; background-color: rgba(34, 197, 94, 0.1); border-radius: 5px;">
                     💡 <strong>Tip:</strong> Als de lijnen ver uit elkaar liggen, betekent dit dat je recent gedrag 
                     anders is dan je historische patroon. De gedrag projectie (⭐) geeft dan een betrouwbaarder 
                     beeld van wat je de komende weken kunt verwachten!
