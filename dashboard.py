@@ -1451,10 +1451,10 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
         'cycling': 7.5,
         'swimming': 7.0,
         
-        # Strength training (Kracht) - Higher values to match gym equipment tracking
-        'strength': 6.5,  # General weight lifting with moderate-high effort
-        'negative': 7.0,  # Negative reps are more intense (more muscle tension)
-        'regular': 6.5   # Regular machine training at moderate-high intensity
+        # Strength training (Kracht) - Conservative values matching egym reality
+        'strength': 4.5,  # General weight lifting (moderate intensity)
+        'negative': 5.0,  # Negative reps slightly higher
+        'regular': 4.5   # Regular machine training
     }
     
     # Determine MET value based on activity
@@ -1485,27 +1485,27 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
                     met = 9.0
     
     elif activity_type.lower() == 'kracht':
-        # Base MET for strength training
-        met = 6.5  # Moderate-high intensity weight training
+        # Base MET for strength training (more conservative)
+        met = 4.5  # Moderate intensity weight training
         
         # Adjust based on method if available
         if methode is not None and pd.notna(methode):
             methode_str = str(methode).lower()
             if 'negative' in methode_str:
-                met = 7.0  # Higher intensity for negatives
+                met = 5.0  # Higher intensity for negatives
             elif 'regular' in methode_str:
-                met = 6.5  # Standard machine training
+                met = 4.5  # Standard machine training
         
-        # Bonus: If heavy weights are used, add intensity multiplier
+        # Bonus: If heavy weights are used, add small intensity multiplier
         if gewicht is not None and pd.notna(gewicht) and gewicht != '':
             try:
                 weight_used = float(str(gewicht).replace(',', '.'))
-                # If lifting > 50kg, add +0.5 MET (high intensity)
-                if weight_used > 50:
-                    met += 0.5
-                # If lifting > 70kg, add another +0.5 MET (very high intensity)
-                if weight_used > 70:
-                    met += 0.5
+                # If lifting > 60kg, add +0.3 MET (high intensity)
+                if weight_used > 60:
+                    met += 0.3
+                # If lifting > 80kg, add another +0.2 MET (very high intensity)
+                if weight_used > 80:
+                    met += 0.2
             except:
                 pass
     
