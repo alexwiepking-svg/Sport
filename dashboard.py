@@ -1865,8 +1865,16 @@ def calculate_period_stats(nutrition_df, activities_df, start_date, end_date, st
         stats['total_calories_burned'] = calories_burned
         stats['avg_calories_burned'] = calories_burned / stats['days']
         stats['total_workouts'] = len(period_activities)
-        stats['cardio_sessions'] = len(period_activities[period_activities['type'].str.lower() == 'cardio'])
-        stats['strength_sessions'] = len(period_activities[period_activities['type'].str.lower() == 'kracht'])
+        # Calculate cardio sessions from detailed activities
+        # Include activities where type is 'cardio' OR activity name suggests cardio
+        cardio_keywords = ['walking', 'cross', 'run', 'cycle', 'zwem', 'swim', 'cardio']
+        cardio_condition = (
+            period_activities['type'].str.lower() == 'cardio'
+        ) | (
+            period_activities['activiteit'].str.lower().str.contains('|'.join(cardio_keywords), na=False)
+        )
+        detailed_cardio_activities = period_activities[cardio_condition]
+        stats['cardio_sessions'] = len(detailed_cardio_activities)
 
         # If we have daily steps data, also count cardio days from daily indicator
         if stappen_df is not None and not stappen_df.empty and 'cardio' in stappen_df.columns:
@@ -1874,14 +1882,26 @@ def calculate_period_stats(nutrition_df, activities_df, start_date, end_date, st
             period_stappen = filter_by_date_range(stappen_df, start_date, end_date)
 
             if not period_stappen.empty:
-                # Normalize cardio column and count additional cardio days
+                # Normalize cardio column and get cardio days
                 period_stappen_copy = period_stappen.copy()
                 period_stappen_copy['cardio_normalized'] = period_stappen_copy['cardio'].astype(str).str.lower().str.strip()
-                daily_cardio_days = len(period_stappen_copy[period_stappen_copy['cardio_normalized'].isin(['ja', 'yes', 'j'])])
+                cardio_days_from_daily = period_stappen_copy[period_stappen_copy['cardio_normalized'].isin(['ja', 'yes', 'j'])]
 
-                # Add daily cardio days that don't have detailed activities
-                # (avoid double counting by only adding days not already counted from activities)
-                stats['cardio_sessions'] = max(stats['cardio_sessions'], daily_cardio_days)
+                # Get unique dates from detailed cardio activities
+                if not detailed_cardio_activities.empty:
+                    detailed_cardio_dates = set(detailed_cardio_activities['datum'].unique())
+                else:
+                    detailed_cardio_dates = set()
+
+                # Get unique dates from daily cardio indicator
+                if not cardio_days_from_daily.empty:
+                    daily_cardio_dates = set(cardio_days_from_daily['datum'].unique())
+                else:
+                    daily_cardio_dates = set()
+
+                # Combine all unique cardio dates (no double counting)
+                all_cardio_dates = detailed_cardio_dates.union(daily_cardio_dates)
+                stats['cardio_sessions'] = len(all_cardio_dates)
     
     return stats
 
