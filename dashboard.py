@@ -1820,7 +1820,7 @@ def generate_action_recommendations(totals, period_stats, targets):
         'goals': goals
     }
 
-def calculate_period_stats(nutrition_df, activities_df, start_date, end_date):
+def calculate_period_stats(nutrition_df, activities_df, start_date, end_date, stappen_df=None):
     """Calculate statistics for a period"""
     # Filter data
     period_nutrition = filter_by_date_range(nutrition_df, start_date, end_date)
@@ -1867,6 +1867,21 @@ def calculate_period_stats(nutrition_df, activities_df, start_date, end_date):
         stats['total_workouts'] = len(period_activities)
         stats['cardio_sessions'] = len(period_activities[period_activities['type'].str.lower() == 'cardio'])
         stats['strength_sessions'] = len(period_activities[period_activities['type'].str.lower() == 'kracht'])
+
+        # If we have daily steps data, also count cardio days from daily indicator
+        if stappen_df is not None and not stappen_df.empty and 'cardio' in stappen_df.columns:
+            # Filter stappen data to the period
+            period_stappen = filter_by_date_range(stappen_df, start_date, end_date)
+
+            if not period_stappen.empty:
+                # Normalize cardio column and count additional cardio days
+                period_stappen_copy = period_stappen.copy()
+                period_stappen_copy['cardio_normalized'] = period_stappen_copy['cardio'].astype(str).str.lower().str.strip()
+                daily_cardio_days = len(period_stappen_copy[period_stappen_copy['cardio_normalized'].isin(['ja', 'yes', 'j'])])
+
+                # Add daily cardio days that don't have detailed activities
+                # (avoid double counting by only adding days not already counted from activities)
+                stats['cardio_sessions'] = max(stats['cardio_sessions'], daily_cardio_days)
     
     return stats
 
@@ -2203,7 +2218,8 @@ def main():
     # Calculate data for sidebar actions (before tabs)
     nutrition_df = data.get('voeding', pd.DataFrame())
     activities_df = data.get('activiteiten', pd.DataFrame())
-    period_stats = calculate_period_stats(nutrition_df, activities_df, start_date, end_date)
+    stappen_df = data.get('stappen', pd.DataFrame())
+    period_stats = calculate_period_stats(nutrition_df, activities_df, start_date, end_date, stappen_df)
     
     if view_mode == "📅 Dag":
         today_str = start_date.strftime("%d/%m/%Y")
@@ -3302,9 +3318,10 @@ def main():
         
         nutrition_df = data.get('voeding', pd.DataFrame())
         activities_df = data.get('activiteiten', pd.DataFrame())
+        stappen_df = data.get('stappen', pd.DataFrame())
         
         # Calculate period statistics
-        period_stats = calculate_period_stats(nutrition_df, activities_df, start_date, end_date)
+        period_stats = calculate_period_stats(nutrition_df, activities_df, start_date, end_date, stappen_df)
         
         # Determine labels based on view mode
         is_daily_view = (view_mode == "📅 Dag")
