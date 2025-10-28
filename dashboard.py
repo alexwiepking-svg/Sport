@@ -1471,6 +1471,16 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
     if gewicht_kg is None:
         import streamlit as st
         gewicht_kg = st.session_state.get('targets', {}).get('weight', 106.2)
+
+    # Normalize string inputs to avoid AttributeError when calling .lower()
+    # Convert None to empty string and ensure consistent types
+    activity_type = '' if activity_type is None else str(activity_type)
+    activiteit = '' if activiteit is None else str(activiteit)
+    methode = None if methode is None else str(methode)
+
+    activity_type_l = activity_type.lower()
+    activiteit_l = activiteit.lower()
+    methode_l = methode.lower() if (methode is not None and methode != '') else None
     
     hours = 0
     
@@ -1486,7 +1496,7 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
             hours = 0
     
     # For strength training without duration, estimate based on sets and reps
-    if hours == 0 and activity_type.lower() == 'kracht':
+    if hours == 0 and activity_type_l == 'kracht':
         if pd.notna(sets) and pd.notna(reps):
             try:
                 # Estimate: 5-6 seconds per rep (controlled movements) + 120 seconds rest between sets
@@ -1534,18 +1544,17 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
     # Determine MET value based on activity
     met = 5.0  # Default (moderate intensity)
     
-    if activity_type.lower() == 'cardio':
-        activiteit_lower = activiteit.lower() if pd.notna(activiteit) else ''
-        
-        if 'cross' in activiteit_lower or 'elliptical' in activiteit_lower:
+    if activity_type_l == 'cardio':
+        # activiteit_l already normalized above
+        if 'cross' in activiteit_l or 'elliptical' in activiteit_l:
             met = 7.0  # Moderate to vigorous intensity
-        elif 'walk' in activiteit_lower or 'wandel' in activiteit_lower:
+        elif 'walk' in activiteit_l or 'wandel' in activiteit_l:
             met = 3.5
-        elif 'run' in activiteit_lower or 'hardlopen' in activiteit_lower:
+        elif 'run' in activiteit_l or 'hardlopen' in activiteit_l:
             met = 9.0
-        elif 'cycle' in activiteit_lower or 'fiets' in activiteit_lower:
+        elif 'cycle' in activiteit_l or 'fiets' in activiteit_l:
             met = 7.5
-        elif 'zwem' in activiteit_lower or 'swim' in activiteit_lower:
+        elif 'zwem' in activiteit_l or 'swim' in activiteit_l:
             met = 7.0
         else:
             # Estimate from distance if available
@@ -1558,16 +1567,15 @@ def estimate_calories_burned(activity_type, activiteit, afstand, duur, gewicht_k
                 else:  # Running
                     met = 9.0
     
-    elif activity_type.lower() == 'kracht':
+    elif activity_type_l == 'kracht':
         # Base MET for strength training (more conservative)
         met = 4.5  # Moderate intensity weight training
         
         # Adjust based on method if available
-        if methode is not None and pd.notna(methode):
-            methode_str = str(methode).lower()
-            if 'negative' in methode_str:
+        if methode_l is not None:
+            if 'negative' in methode_l:
                 met = 5.0  # Higher intensity for negatives
-            elif 'regular' in methode_str:
+            elif 'regular' in methode_l:
                 met = 4.5  # Standard machine training
         
         # Bonus: If heavy weights are used, add small intensity multiplier
