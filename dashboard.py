@@ -4218,8 +4218,14 @@ def main():
             # Filter by selected date range
             period_activities = filter_by_date_range(activities_df, start_date, end_date)
             
-            # Case-insensitive filtering for cardio
-            cardio = period_activities[period_activities['type'].str.lower() == 'cardio']
+            # Case-insensitive filtering for cardio - include both type='cardio' and cardio-like activity names
+            cardio_keywords = ['walking', 'cross', 'run', 'cycle', 'zwem', 'swim', 'cardio']
+            cardio_condition = (
+                period_activities['type'].str.lower() == 'cardio'
+            ) | (
+                period_activities['activiteit'].str.lower().str.contains('|'.join(cardio_keywords), na=False)
+            )
+            cardio = period_activities[cardio_condition]
             
             # Calculate comparison based on selected period type
             # Calculate period length to determine comparison window
@@ -4227,7 +4233,12 @@ def main():
             prev_period_start = start_date - timedelta(days=period_days)
             prev_period_end = end_date - timedelta(days=period_days)
             prev_period_activities = filter_by_date_range(activities_df, prev_period_start, prev_period_end)
-            prev_week_cardio = prev_period_activities[prev_period_activities['type'].str.lower() == 'cardio']
+            prev_cardio_condition = (
+                prev_period_activities['type'].str.lower() == 'cardio'
+            ) | (
+                prev_period_activities['activiteit'].str.lower().str.contains('|'.join(cardio_keywords), na=False)
+            )
+            prev_week_cardio = prev_period_activities[prev_cardio_condition]
             
             if not cardio.empty:
                 # Calculate calories for cardio activities
