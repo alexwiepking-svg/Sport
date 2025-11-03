@@ -5657,8 +5657,8 @@ def main():
                                 for _, row in blauw.iterrows():
                                     progress_pct = ""
                                     progress_color = "#3b82f6"
-                                    if pd.notna(row.get('meting2')):
-                                        change = ((row['meting2'] - row['meting1']) / row['meting1'] * 100)
+                                    if pd.notna(row.get('meting3')):
+                                        change = ((row['meting3'] - row['meting1']) / row['meting1'] * 100)
                                         progress_pct = f"{change:+.1f}%"
                                         progress_color = "#22c55e" if change > 0 else "#ef4444"
                                     
